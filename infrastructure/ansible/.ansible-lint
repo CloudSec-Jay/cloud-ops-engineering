@@ -1,0 +1,15 @@
+---
+# ansible-lint configuration for iac-security/Ansible/
+# Run from this directory: ansible-lint .
+profile: production
+
+warn_list:
+  # var-naming[no-role-prefix]: rhel_cis_level1 role uses cis_level1_ prefix convention
+  # inherited from upstream CIS hardening playbook — renaming breaks community role compatibility
+  - var-naming[no-role-prefix]
+  - args[module]
+
+exclude_paths:
+  - playbooks/install_mysql.yml
+  # Third-party roles installed via ansible-galaxy — not subject to our lint standards
+  - .ansible/

@@ -1,0 +1,330 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Detection pipeline — CloudTrail, GuardDuty, KMS, S3, Wazuh IAM user
+
+# ──────────────────────────────────────────────
+# Parameters
+# ──────────────────────────────────────────────
+Parameters:
+  TrailName:
+    Type: String
+    Default: cloudsec-trail
+
+  DetectionLogsBucketName:
+    Type: String
+    Description: S3 bucket name for CloudTrail and GuardDuty logs
+
+  TagEnvironment:
+    Type: String
+    Default: production
+
+  TagProject:
+    Type: String
+    Default: cloud-ops-engineering
+
+  TagOwner:
+    Type: String
+    Default: security-team
+# ──────────────────────────────────────────────
+# Resources
+# ──────────────────────────────────────────────
+Resources:
+
+  # ── GuardDuty (created first — KMS/S3 policies reference detector ARN) ──
+  GuardDutyDetector:
+    Type: AWS::GuardDuty::Detector
+    Properties:
+      Enable: true
+      DataSources:
+        S3Logs:
+          Enable: true
+
+  # ── KMS Key ──────────────────────────────────
+  DetectionKMSKey:
+    Type: AWS::KMS::Key
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      Description: KMS key for detection pipeline — CloudTrail and GuardDuty
+      EnableKeyRotation: true
+      PendingWindowInDays: 7
+      KeyPolicy:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: EnableIAMPermissions
+            Effect: Allow
+            Principal:
+              AWS: !Sub "arn:aws:iam::${AWS::AccountId}:root"
+            Action: "kms:*"
+            Resource: "*"
+          - Sid: AllowCloudTrail
+            Effect: Allow
+            Principal:
+              Service: cloudtrail.amazonaws.com
+            Action:
+              - "kms:GenerateDataKey*"
+              - "kms:DescribeKey"
+            Resource: "*"
+            Condition:
+              StringEquals:
+                "aws:SourceArn": !Sub "arn:aws:cloudtrail:${AWS::Region}:${AWS::AccountId}:trail/${TrailName}"
+          - Sid: AllowGuardDuty
+            Effect: Allow
+            Principal:
+              Service: guardduty.amazonaws.com
+            Action: "kms:GenerateDataKey"
+            Resource: "*"
+            Condition:
+              StringEquals:
+                "aws:SourceAccount": !Sub "${AWS::AccountId}"
+                "aws:SourceArn": !Sub
+                  - "arn:aws:guardduty:${AWS::Region}:${AWS::AccountId}:detector/${DetectorId}"
+                  - DetectorId: !Ref GuardDutyDetector
+      Tags:
+        - Key: Name
+          Value: cloudsec-detection-key
+        - Key: Environment
+          Value: !Ref TagEnvironment
+        - Key: Project
+          Value: !Ref TagProject
+        - Key: Owner
+          Value: !Ref TagOwner
+
+  DetectionKMSAlias:
+    Type: AWS::KMS::Alias
+    Properties:
+      AliasName: alias/cloudsec-detection
+      TargetKeyId: !Ref DetectionKMSKey
+
+  # ── S3 Bucket ────────────────────────────────
+  DetectionLogsBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      BucketName: !Ref DetectionLogsBucketName
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: aws:kms
+              KMSMasterKeyID: !GetAtt DetectionKMSKey.Arn
+            BucketKeyEnabled: true
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      VersioningConfiguration:
+        Status: Enabled
+      LifecycleConfiguration:
+        Rules:
+          - Id: expire-logs
+            Status: Enabled
+            ExpirationInDays: 365
+            NoncurrentVersionExpiration:
+              NoncurrentDays: 365
+      Tags:
+        - Key: Name
+          Value: !Ref DetectionLogsBucketName
+        - Key: Environment
+          Value: !Ref TagEnvironment
+        - Key: Project
+          Value: !Ref TagProject
+        - Key: Owner
+          Value: !Ref TagOwner
+
+  DetectionLogsBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref DetectionLogsBucket
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: DenyNonHTTPS
+            Effect: Deny
+            Principal: "*"
+            Action: "s3:*"
+            Resource:
+              - !GetAtt DetectionLogsBucket.Arn
+              - !Sub "${DetectionLogsBucket.Arn}/*"
+            Condition:
+              Bool:
+                "aws:SecureTransport": "false"
+          - Sid: AWSCloudTrailAclCheck
+            Effect: Allow
+            Principal:
+              Service: cloudtrail.amazonaws.com
+            Action: "s3:GetBucketAcl"
+            Resource: !GetAtt DetectionLogsBucket.Arn
+            Condition:
+              StringEquals:
+                "aws:SourceArn": !Sub "arn:aws:cloudtrail:${AWS::Region}:${AWS::AccountId}:trail/${TrailName}"
+          - Sid: AWSCloudTrailWrite
+            Effect: Allow
+            Principal:
+              Service: cloudtrail.amazonaws.com
+            Action: "s3:PutObject"
+            Resource: !Sub "${DetectionLogsBucket.Arn}/AWSLogs/${AWS::AccountId}/*"
+            Condition:
+              StringEquals:
+                "s3:x-amz-acl": "bucket-owner-full-control"
+                "aws:SourceArn": !Sub "arn:aws:cloudtrail:${AWS::Region}:${AWS::AccountId}:trail/${TrailName}"
+          - Sid: AllowGuardDutyAclCheck
+            Effect: Allow
+            Principal:
+              Service: guardduty.amazonaws.com
+            Action:
+              - "s3:GetBucketAcl"
+              - "s3:GetBucketLocation"
+            Resource: !GetAtt DetectionLogsBucket.Arn
+            Condition:
+              StringEquals:
+                "aws:SourceAccount": !Sub "${AWS::AccountId}"
+                "aws:SourceArn": !Sub
+                  - "arn:aws:guardduty:${AWS::Region}:${AWS::AccountId}:detector/${DetectorId}"
+                  - DetectorId: !Ref GuardDutyDetector
+          - Sid: AllowGuardDutyWrite
+            Effect: Allow
+            Principal:
+              Service: guardduty.amazonaws.com
+            Action: "s3:PutObject"
+            Resource: !Sub "${DetectionLogsBucket.Arn}/AmazonGuardDuty/*"
+            Condition:
+              StringEquals:
+                "aws:SourceAccount": !Sub "${AWS::AccountId}"
+                "aws:SourceArn": !Sub
+                  - "arn:aws:guardduty:${AWS::Region}:${AWS::AccountId}:detector/${DetectorId}"
+                  - DetectorId: !Ref GuardDutyDetector
+          - Sid: EnforceKMSAndKeyID
+            Effect: Deny
+            Principal:
+              Service: guardduty.amazonaws.com
+            Action: "s3:PutObject"
+            Resource: !Sub "${DetectionLogsBucket.Arn}/*"
+            Condition:
+              StringNotEquals:
+                "s3:x-amz-server-side-encryption-aws-kms-key-id": !GetAtt DetectionKMSKey.Arn
+
+  # ── CloudTrail ───────────────────────────────
+  CloudTrail:
+    Type: AWS::CloudTrail::Trail
+    DependsOn: DetectionLogsBucketPolicy
+    Properties:
+      TrailName: !Ref TrailName
+      S3BucketName: !Ref DetectionLogsBucket
+      IncludeGlobalServiceEvents: true
+      IsMultiRegionTrail: true
+      EnableLogFileValidation: true
+      IsLogging: true
+      KMSKeyId: !GetAtt DetectionKMSKey.Arn
+      EventSelectors:
+        - ReadWriteType: All
+          IncludeManagementEvents: true
+      Tags:
+        - Key: Name
+          Value: !Ref TrailName
+        - Key: Environment
+          Value: !Ref TagEnvironment
+        - Key: Project
+          Value: !Ref TagProject
+        - Key: Owner
+          Value: !Ref TagOwner
+
+  # ── GuardDuty Publishing Destination ─────────
+  # T1530: export findings to immutable S3+KMS evidence trail, scoped to this detector
+  GuardDutyPublishingDestination:
+    Type: AWS::GuardDuty::PublishingDestination
+    DependsOn:
+      - DetectionLogsBucketPolicy
+      - DetectionKMSAlias
+    Properties:
+      DetectorId: !Ref GuardDutyDetector
+      DestinationType: S3
+      DestinationProperties:
+        DestinationArn: !GetAtt DetectionLogsBucket.Arn
+        KmsKeyArn: !GetAtt DetectionKMSKey.Arn
+
+  # ── IAM — Wazuh S3 reader ────────────────────
+  WazuhS3ReaderUser:
+    Type: AWS::IAM::User
+    Properties:
+      UserName: wazuh-s3-reader
+      Policies:
+        - PolicyName: wazuh-s3-read-detection-logs
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Sid: ListBucket
+                Effect: Allow
+                Action: "s3:ListBucket"
+                Resource: !GetAtt DetectionLogsBucket.Arn
+              - Sid: GetObjects
+                Effect: Allow
+                Action: "s3:GetObject"
+                Resource: !Sub "${DetectionLogsBucket.Arn}/*"
+              - Sid: DecryptLogs
+                Effect: Allow
+                Action:
+                  - "kms:Decrypt"
+                  - "kms:DescribeKey"
+                Resource: !GetAtt DetectionKMSKey.Arn
+      Tags:
+        - Key: Name
+          Value: wazuh-s3-reader
+        - Key: Environment
+          Value: !Ref TagEnvironment
+        - Key: Project
+          Value: !Ref TagProject
+        - Key: Owner
+          Value: !Ref TagOwner
+
+  # WARNING: Secret access key stored in CFN stack outputs.
+  # Rotate after use. Do not commit .env to version control.
+  WazuhS3ReaderAccessKey:
+    Type: AWS::IAM::AccessKey
+    Properties:
+      UserName: !Ref WazuhS3ReaderUser
+
+# ──────────────────────────────────────────────
+# Outputs
+# ──────────────────────────────────────────────
+Outputs:
+  KMSKeyArn:
+    Description: KMS key ARN
+    Value: !GetAtt DetectionKMSKey.Arn
+
+  S3BucketArn:
+    Description: Detection logs S3 bucket ARN
+    Value: !GetAtt DetectionLogsBucket.Arn
+
+  S3BucketName:
+    Description: Detection logs S3 bucket name
+    Value: !Ref DetectionLogsBucket
+
+  CloudTrailArn:
+    Description: CloudTrail trail ARN
+    Value: !GetAtt CloudTrail.Arn
+
+  GuardDutyDetectorId:
+    Description: GuardDuty detector ID
+    Value: !Ref GuardDutyDetector
+
+  # ── Wazuh .env values ─────────────────────────
+  WazuhRegion:
+    Description: AWS region — AWS_REGION in Wazuh .env
+    Value: !Sub "${AWS::Region}"
+
+  WazuhAccessKeyId:
+    Description: AWS_ACCESS_KEY_ID for Wazuh .env
+    Value: !Ref WazuhS3ReaderAccessKey
+
+  WazuhSecretAccessKey:
+    Description: AWS_SECRET_ACCESS_KEY for Wazuh .env — treat as secret (retrieve via aws cloudformation describe-stacks)
+    Value: !GetAtt WazuhS3ReaderAccessKey.SecretAccessKey
+
+  WazuhCloudTrailPrefix:
+    Description: S3 path prefix for CloudTrail logs in ossec.conf
+    Value: !Sub "AWSLogs/${AWS::AccountId}/CloudTrail/"
+
+  WazuhGuardDutyPrefix:
+    Description: S3 path prefix for GuardDuty findings in ossec.conf
+    Value: "AmazonGuardDuty/"

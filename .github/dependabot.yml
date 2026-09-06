@@ -1,0 +1,34 @@
+version: 2
+
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    labels: [dependencies, ci]
+
+  - package-ecosystem: docker
+    directory: /containers/images/lint-container
+    schedule:
+      interval: weekly
+    labels: [dependencies, docker]
+
+  - package-ecosystem: pip
+    directory: /containers/images/lint-container
+    schedule:
+      interval: weekly
+    labels: [dependencies, python]
+
+  - package-ecosystem: docker
+    directory: /containers/images/toolbox
+    schedule:
+      interval: weekly
+    labels: [dependencies, docker]
+
+  - package-ecosystem: pip
+    directory: /containers/images/toolbox
+    schedule:
+      interval: weekly
+    labels: [dependencies, python]
+    ignore:
+      - dependency-name: boto3

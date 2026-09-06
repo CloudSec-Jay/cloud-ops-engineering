@@ -1,0 +1,402 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+  Contact form backend — WAF → API Gateway HTTP API → Lambda → DynamoDB.
+  T1190 mitigation: WAF rate-based rule, input validation, honeypot, per-IP
+  DynamoDB rate-limit, optional reCAPTCHA v3.
+
+# ──────────────────────────────────────────────
+# Parameters
+# ──────────────────────────────────────────────
+Parameters:
+  RecaptchaSecret:
+    Type: String
+    NoEcho: true
+    Default: ""
+    Description: Google reCAPTCHA v3 secret key — leave empty to disable CAPTCHA
+
+  CorsOrigin:
+    Type: String
+    Default: "https://cloudsec-jay.github.io"
+    Description: Allowed CORS origin — must be https:// portfolio domain
+    AllowedPattern: "https://[a-zA-Z0-9][a-zA-Z0-9.-]+"
+    ConstraintDescription: Must start with https:// and be a valid hostname
+
+  ThrottleBurstLimit:
+    Type: Number
+    Default: 10
+    Description: Max concurrent requests before API GW throttle
+
+  ThrottleRateLimit:
+    Type: Number
+    Default: 5
+    Description: Sustained requests per second before API GW throttle
+
+  WafRateLimit:
+    Type: Number
+    Default: 100
+    Description: Max requests per 5 minutes per IP before WAF blocks (min 100)
+
+  TagEnvironment:
+    Type: String
+    Default: production
+
+  TagProject:
+    Type: String
+    Default: cloud-ops-engineering
+
+# ──────────────────────────────────────────────
+# Resources
+# ──────────────────────────────────────────────
+Resources:
+
+  # ── DynamoDB ──────────────────────────────────
+  # T1213: submissions stored encrypted at rest, TTL auto-deletes after 90 days
+  ContactTable:
+    Type: AWS::DynamoDB::Table
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      TableName: cloudsec-contact-submissions
+      BillingMode: PAY_PER_REQUEST
+      SSESpecification:
+        SSEEnabled: true
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+      AttributeDefinitions:
+        - AttributeName: submission_id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: submission_id
+          KeyType: HASH
+      TimeToLiveSpecification:
+        AttributeName: expires_at
+        Enabled: true
+      Tags:
+        - Key: Environment
+          Value: !Ref TagEnvironment
+        - Key: Project
+          Value: !Ref TagProject
+
+  # ── CloudWatch Log Group ───────────────────────
+  # Explicit log group: 90-day retention, visible in CloudWatch before first invocation
+  ContactLambdaLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: /aws/lambda/cloudsec-contact-handler
+      RetentionInDays: 90
+      Tags:
+        - Key: Environment
+          Value: !Ref TagEnvironment
+        - Key: Project
+          Value: !Ref TagProject
+
+  # ── IAM ───────────────────────────────────────
+  # Least privilege: Lambda can only PutItem into this table
+  ContactLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: cloudsec-contact-lambda-role
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: dynamo-put-only
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Sid: PutContactSubmission
+                Effect: Allow
+                Action:
+                  - "dynamodb:PutItem"
+                Resource: !GetAtt ContactTable.Arn
+      Tags:
+        - Key: Environment
+          Value: !Ref TagEnvironment
+        - Key: Project
+          Value: !Ref TagProject
+
+  # ── Lambda ────────────────────────────────────
+  ContactFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: cloudsec-contact-handler
+      Description: Validates and stores contact form submissions — T1190 input validation
+      Runtime: python3.12
+      Handler: index.handler
+      Role: !GetAtt ContactLambdaRole.Arn
+      Timeout: 10
+      MemorySize: 128
+      LoggingConfig:
+        LogFormat: JSON
+        LogGroup: !Ref ContactLambdaLogGroup
+      Environment:
+        Variables:
+          TABLE_NAME: !Ref ContactTable
+          CORS_ORIGIN: !Ref CorsOrigin
+          RECAPTCHA_SECRET: !Ref RecaptchaSecret
+      Code:
+        ZipFile: |
+          import json
+          import os
+          import re
+          import uuid
+          import html
+          import urllib.request
+          import urllib.parse
+          from datetime import datetime, timezone, timedelta
+          import boto3
+
+          dynamodb  = boto3.resource('dynamodb')
+          table     = dynamodb.Table(os.environ['TABLE_NAME'])
+          CORS      = os.environ.get('CORS_ORIGIN', '*')
+          SECRET    = os.environ.get('RECAPTCHA_SECRET', '')
+          EMAIL_RE  = re.compile(r'^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$')
+          STRIP_RE  = re.compile(r'[<>"\x00-\x1f\x7f]')
+
+          HEADERS = {
+              'Content-Type': 'application/json',
+              'Access-Control-Allow-Origin':  CORS,
+              'Access-Control-Allow-Methods': 'POST, OPTIONS',
+              'Access-Control-Allow-Headers': 'Content-Type',
+          }
+
+          def log(level, event_type, **kwargs):
+              print(json.dumps({'level': level, 'event': event_type, **kwargs}))
+
+          def sanitize(value, max_len):
+              value = str(value).strip()
+              value = STRIP_RE.sub('', value)
+              value = html.escape(value, quote=True)
+              return value[:max_len]
+
+          def verify_recaptcha(token, ip):
+              if not SECRET or not token:
+                  return False
+              data = urllib.parse.urlencode({
+                  'secret':   SECRET,
+                  'response': token,
+                  'remoteip': ip,
+              }).encode()
+              try:
+                  req  = urllib.request.Request('https://www.google.com/recaptcha/api/siteverify', data=data)
+                  resp = json.loads(urllib.request.urlopen(req, timeout=3).read())
+                  return resp.get('success') and resp.get('score', 0) >= 0.5
+              except Exception:
+                  return False
+
+          def check_rate_limit(ip):
+              """One submission per minute per IP via conditional DynamoDB write."""
+              now        = datetime.now(timezone.utc)
+              window_key = f"rl#{ip}#{now.strftime('%Y%m%d%H%M')}"
+              try:
+                  table.put_item(
+                      Item={
+                          'submission_id': window_key,
+                          'expires_at':    int((now + timedelta(seconds=60)).timestamp()),
+                          'type':          'rate_limit',
+                      },
+                      ConditionExpression='attribute_not_exists(submission_id)',
+                  )
+                  return True
+              except dynamodb.meta.client.exceptions.ConditionalCheckFailedException:
+                  return False
+
+          def handler(event, context):
+              method = event.get('requestContext', {}).get('http', {}).get('method', '')
+              if method == 'OPTIONS':
+                  return {'statusCode': 204, 'headers': HEADERS, 'body': ''}
+
+              ip = (event.get('requestContext', {}).get('http', {}).get('sourceIp') or 'unknown')[:45]
+
+              try:
+                  body = json.loads(event.get('body') or '{}')
+              except (json.JSONDecodeError, TypeError):
+                  log('WARN', 'invalid_body', ip=ip)
+                  return {'statusCode': 400, 'headers': HEADERS,
+                          'body': json.dumps({'error': 'Invalid request body'})}
+
+              # Honeypot — bots fill hidden fields, legitimate users never see it
+              if body.get('website', ''):
+                  log('INFO', 'honeypot_triggered', ip=ip)
+                  return {'statusCode': 200, 'headers': HEADERS,
+                          'body': json.dumps({'message': 'Message received — thank you!'})}
+
+              # reCAPTCHA v3
+              token = str(body.get('recaptcha_token', '')).strip()[:2048]
+              if SECRET and not verify_recaptcha(token, ip):
+                  log('WARN', 'recaptcha_failed', ip=ip)
+                  return {'statusCode': 400, 'headers': HEADERS,
+                          'body': json.dumps({'error': 'CAPTCHA verification failed'})}
+
+              name    = sanitize(body.get('name',    ''), 60)
+              email   = sanitize(body.get('email',   ''), 254)
+              message = sanitize(body.get('message', ''), 500)
+
+              errors = []
+              if not name or len(name) < 2:
+                  errors.append('Name must be at least 2 characters')
+              if not email or not EMAIL_RE.match(email):
+                  errors.append('Valid email is required')
+              if not message or len(message) < 10:
+                  errors.append('Message must be at least 10 characters')
+              if errors:
+                  log('INFO', 'validation_failed', ip=ip, errors=errors)
+                  return {'statusCode': 400, 'headers': HEADERS,
+                          'body': json.dumps({'errors': errors})}
+
+              if not check_rate_limit(ip):
+                  log('WARN', 'rate_limited', ip=ip)
+                  return {'statusCode': 429, 'headers': HEADERS,
+                          'body': json.dumps({'error': 'Too many submissions — please wait a moment'})}
+
+              now        = datetime.now(timezone.utc)
+              expires_at = int((now + timedelta(days=90)).timestamp())
+              sid        = str(uuid.uuid4())
+
+              table.put_item(Item={
+                  'submission_id': sid,
+                  'name':          name,
+                  'email':         email,
+                  'message':       message,
+                  'submitted_at':  now.isoformat(),
+                  'expires_at':    expires_at,
+                  'source_ip':     ip,
+              })
+
+              log('INFO', 'submission_stored', submission_id=sid, ip=ip)
+              return {'statusCode': 200, 'headers': HEADERS,
+                      'body': json.dumps({'message': 'Message received — thank you!'})}
+      Tags:
+        - Key: Environment
+          Value: !Ref TagEnvironment
+        - Key: Project
+          Value: !Ref TagProject
+
+  # ── WAF ───────────────────────────────────────
+  # T1190: rate-based rule blocks IPs exceeding WafRateLimit reqs/5min
+  # Applied before Lambda executes — blocks before cost is incurred
+  ContactWAF:
+    Type: AWS::WAFv2::WebACL
+    Properties:
+      Name: cloudsec-contact-waf
+      Scope: REGIONAL
+      Description: Rate-limit and block abusive IPs on the contact form API
+      DefaultAction:
+        Allow: {}
+      Rules:
+        - Name: IPRateLimit
+          Priority: 0
+          Action:
+            Block: {}
+          Statement:
+            RateBasedStatement:
+              Limit: !Ref WafRateLimit
+              AggregateKeyType: IP
+          VisibilityConfig:
+            CloudWatchMetricsEnabled: true
+            MetricName: contact-ip-rate-limit
+            SampledRequestsEnabled: true
+      VisibilityConfig:
+        CloudWatchMetricsEnabled: true
+        MetricName: cloudsec-contact-waf
+        SampledRequestsEnabled: true
+      Tags:
+        - Key: Environment
+          Value: !Ref TagEnvironment
+        - Key: Project
+          Value: !Ref TagProject
+
+  # ── API Gateway HTTP API ───────────────────────
+  ContactApi:
+    Type: AWS::ApiGatewayV2::Api
+    Properties:
+      Name: cloudsec-contact-api
+      ProtocolType: HTTP
+      Description: Contact form endpoint — POST /contact
+      CorsConfiguration:
+        AllowOrigins:
+          - !Ref CorsOrigin
+        AllowMethods:
+          - POST
+          - OPTIONS
+        AllowHeaders:
+          - Content-Type
+        MaxAge: 300
+
+  ContactIntegration:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId: !Ref ContactApi
+      IntegrationType: AWS_PROXY
+      IntegrationUri: !Sub
+        - "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${LambdaArn}/invocations"
+        - LambdaArn: !GetAtt ContactFunction.Arn
+      PayloadFormatVersion: "2.0"
+
+  ContactRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref ContactApi
+      RouteKey: "POST /contact"
+      Target: !Sub "integrations/${ContactIntegration}"
+
+  ContactStage:
+    Type: AWS::ApiGatewayV2::Stage
+    Properties:
+      ApiId: !Ref ContactApi
+      StageName: "$default"
+      AutoDeploy: true
+      DefaultRouteSettings:
+        ThrottlingBurstLimit: !Ref ThrottleBurstLimit
+        ThrottlingRateLimit: !Ref ThrottleRateLimit
+
+  # WAF association — attaches WebACL to the API stage
+  ContactWAFAssociation:
+    Type: AWS::WAFv2::WebACLAssociation
+    DependsOn: ContactStage
+    Properties:
+      ResourceArn: !Sub "arn:aws:apigateway:${AWS::Region}::/apis/${ContactApi}/stages/$default"
+      WebACLArn: !GetAtt ContactWAF.Arn
+
+  # Lambda permission for API Gateway to invoke — scoped to this API only
+  ContactLambdaPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !GetAtt ContactFunction.Arn
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${ContactApi}/*/*/contact"
+
+# ──────────────────────────────────────────────
+# Outputs
+# ──────────────────────────────────────────────
+Outputs:
+  ApiEndpoint:
+    Description: >
+      POST to this URL from the portfolio site.
+      Update docs/index.html CSP connect-src and docs/main.js CONTACT_API_URL with this value.
+    Value: !Sub "https://${ContactApi}.execute-api.${AWS::Region}.amazonaws.com/contact"
+
+  ApiOrigin:
+    Description: >
+      Origin-only value for CSP connect-src in docs/index.html
+      (no path, no trailing slash)
+    Value: !Sub "https://${ContactApi}.execute-api.${AWS::Region}.amazonaws.com"
+
+  DynamoTableName:
+    Description: DynamoDB table name
+    Value: !Ref ContactTable
+
+  LambdaFunctionName:
+    Description: Lambda function name
+    Value: !Ref ContactFunction
+
+  WAFWebACLArn:
+    Description: WAF WebACL ARN
+    Value: !GetAtt ContactWAF.Arn

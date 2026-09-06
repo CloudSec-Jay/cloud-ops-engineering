@@ -1,0 +1,18 @@
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Sid": "DenyIMDSv1",
+            "Effect": "Deny",
+            "Action": "ec2:RunInstances",
+            "Resource": "*",
+            "Condition": {
+            "StringNotEquals": {
+                "ec2:MetadataHttpTokens": "required"
+
+                }
+            }
+
+        }
+    ]
+}

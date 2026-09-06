@@ -1,0 +1,49 @@
+[Unit]
+Description=Wazuh Indexer (OpenSearch)
+Documentation=https://documentation.wazuh.com/current/deployment-options/docker/index.html
+After=network-online.target
+Wants=network-online.target
+
+[Container]
+Image=wazuh/wazuh-indexer:4.9.0
+ContainerName=wazuh.indexer
+
+Network=wazuh.network
+HostName=wazuh.indexer
+
+# Expose only on loopback — manager and dashboard access via internal network
+PublishPort=127.0.0.1:9200:9200
+
+# Persistent data
+Volume=wazuh-indexer-data.volume:/var/lib/wazuh-indexer:z
+
+# opensearch.yml — defines TLS cert paths, cluster settings, security plugin config
+Volume=/etc/wazuh/config/wazuh.indexer.yml:/usr/share/wazuh-indexer/opensearch.yml:ro,z
+
+# Internal users (bcrypt hashes) — required for security plugin initialization
+Volume=/etc/wazuh/config/internal_users.yml:/usr/share/wazuh-indexer/opensearch-security/internal_users.yml:ro,z
+
+# TLS certificates — target paths must match wazuh.indexer.yml
+# Note: key file renamed from -key.pem to .key to match opensearch.yml reference
+Volume=/etc/wazuh/certs/root-ca.pem:/usr/share/wazuh-indexer/config/certs/root-ca.pem:ro,z
+Volume=/etc/wazuh/certs/wazuh.indexer.pem:/usr/share/wazuh-indexer/config/certs/wazuh.indexer.pem:ro,z
+Volume=/etc/wazuh/certs/wazuh.indexer-key.pem:/usr/share/wazuh-indexer/config/certs/wazuh.indexer.key:ro,z
+Volume=/etc/wazuh/certs/admin.pem:/usr/share/wazuh-indexer/config/certs/admin.pem:ro,z
+Volume=/etc/wazuh/certs/admin-key.pem:/usr/share/wazuh-indexer/config/certs/admin-key.pem:ro,z
+
+# JVM heap — quoted so systemd treats as single value (space would split into two env vars)
+Environment="OPENSEARCH_JAVA_OPTS=-Xms1g -Xmx1g"
+
+Ulimit=memlock=-1:-1
+Ulimit=nofile=65536:65536
+
+Label=project=wazuh-siem
+Label=component=indexer
+
+[Service]
+Restart=on-failure
+RestartSec=30
+TimeoutStartSec=300
+
+[Install]
+WantedBy=multi-user.target default.target

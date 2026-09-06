@@ -1,0 +1,290 @@
+---
+# CIS Fedora Workstation Gap Hardening Playbook
+# Remediates failing CIS checks identified by Wazuh SCA scan (cis_fedora_custom.yaml)
+#
+# Usage:
+#   ansible-playbook -i inventory/inventory.ini playbooks/gap_harding.yml
+#   ansible-playbook -i inventory/inventory.ini playbooks/gap_harding.yml --check  # dry-run
+#
+# MITRE: T1562.001 (Impair Defenses), T1548 (Abuse Elevation Control)
+# NIST:  CM-6 (Configuration Settings), CM-7 (Least Functionality)
+# CIS:   Controls v8.1 IG1-IG3
+# OWASP: A02:2025 (Security Misconfiguration)
+
+- name: CIS Level gap hardening — Fedora workstation
+  hosts: localhost
+  connection: local
+  become: true
+
+  tasks:
+    # CIS 6.2.1 — Ensure shadowed passwords are used
+    # T1003.008: attackers dump /etc/passwd to extract password hashes when shadow is not enforced
+    # M1027: pwconv moves all cleartext/unshadowed entries to /etc/shadow (root-only, mode 640)
+    - name: Ensure shadowed passwords are used (CIS 6.2.1 / T1003.008)
+      ansible.builtin.command: pwconv
+      changed_when: false
+
+    # CIS 5.6.1.4 — Ensure inactive password lock is 30 days or less
+    # T1078.002/T1078.003: stale accounts (local/domain) are valid-credential persistence vectors
+    # Two-part fix: default for new accounts via useradd -D, then enforce on all existing accounts with passwords
+    - name: Set default inactive password lock to 30 days (CIS 5.6.1.4 / T1078)
+      ansible.builtin.command: useradd -D -f 30
+      changed_when: false
+
+    - name: Enforce 30-day inactivity lock on all accounts with active passwords (CIS 5.6.1.4)
+      ansible.builtin.shell: |
+        set -o pipefail
+        awk -F: '
+          $2 !~ /^[!*]/ && $2 != "" && $7 != "30" { print $1 }
+        ' /etc/shadow | xargs -I{} chage --inactive 30 {}
+      changed_when: false
+
+    # CIS 5.6.1.3 — Ensure password warning days is 7 or more
+    # T1078/TA0006: users without advance warning choose weak passwords under pressure (credential access risk)
+    # Two-part fix: /etc/login.defs sets default for new accounts; chage enforces on existing accounts
+    - name: Set PASS_WARN_AGE to 7 in /etc/login.defs (CIS 5.6.1.3 / T1078)
+      ansible.builtin.lineinfile:
+        path: /etc/login.defs
+        regexp: '^\s*PASS_WARN_AGE\s+'
+        line: 'PASS_WARN_AGE   7'
+
+    - name: Enforce 7-day password warning on all accounts with active passwords (CIS 5.6.1.3)
+      ansible.builtin.shell: |
+        set -o pipefail
+        awk -F: '
+          $2 !~ /^[!*]/ && $2 != "" && $6 < 7 { print $1 }
+        ' /etc/shadow | xargs -I{} chage --warndays 7 {}
+      changed_when: false
+
+    # CIS 5.5.4 — Ensure SHA-512 or yescrypt password hashing is configured
+    # T1003.008/T1110.002: weak hash algorithms (MD5, SHA-256) are crackable offline after credential dump
+    # M1041: stronger hashing raises offline cracking compute cost
+    # Note: Fedora 43 default is yescrypt (stronger than SHA-512) — do not downgrade if already set
+    # PAM is managed by authselect on Fedora — do not edit /etc/pam.d/ directly
+    - name: Set crypt_style to sha512 in /etc/libuser.conf (CIS 5.5.4 / T1003.008)
+      ansible.builtin.lineinfile:
+        path: /etc/libuser.conf
+        regexp: '^\s*crypt_style\s*='
+        line: 'crypt_style = sha512'
+
+    - name: Set ENCRYPT_METHOD to SHA512 in /etc/login.defs (CIS 5.5.4 / T1003.008)
+      ansible.builtin.lineinfile:
+        path: /etc/login.defs
+        regexp: '^\s*ENCRYPT_METHOD\s+'
+        line: 'ENCRYPT_METHOD SHA512'
+
+    - name: Apply authselect changes to regenerate PAM config (CIS 5.5.4)
+      ansible.builtin.command: authselect apply-changes
+      changed_when: false
+
+    # CIS 4.1.1.3 — Ensure audit_backlog_limit is sufficient
+    # T1562.001: default backlog of 64 records fills during boot — kernel drops audit events silently
+    # Attacker timing activity to boot window evades detection; 8192 ensures no records lost on busy boot
+    - name: Set audit_backlog_limit=8192 in kernel cmdline (CIS 4.1.1.3 / T1562.001)
+      ansible.builtin.command: grubby --update-kernel ALL --args 'audit_backlog_limit=8192'
+      changed_when: false
+
+    # CIS 2.2.3 — Ensure CUPS is not installed
+    # T1210: CUPS exposes a network listener and has an extensive CVE history (remote code execution)
+    # M1042: remove services not required for function — if this host doesn't print, CUPS is pure attack surface
+    - name: Remove CUPS and print-subsystem dependencies (CIS 2.2.3 / T1210)
+      ansible.builtin.dnf:
+        name:
+          - cups
+          - cups-filters
+          - cups-browsed
+          - cups-filters-driverless
+          - libppd
+          - gutenprint-cups
+          - bluez-cups
+          - braille-printer-app
+        state: absent
+
+    # CIS 1.3.2 — Ensure filesystem integrity is regularly checked
+    # T1565.001: tampering with binaries/configs is only detected if integrity is checked periodically
+    # Wazuh FIM catches real-time changes; AIDE provides daily confirmation no modifications were missed
+    # Note: AIDE must be installed and initialized (aide --init) before first check runs
+    - name: Create AIDE check systemd service (CIS 1.3.2)
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/aidecheck.service
+        owner: root
+        group: root
+        mode: '0644'
+        content: |
+          [Unit]
+          Description=Aide Check
+
+          [Service]
+          Type=simple
+          ExecStart=/usr/sbin/aide --check
+
+          [Install]
+          WantedBy=multi-user.target
+
+    - name: Create AIDE check systemd timer (CIS 1.3.2)
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/aidecheck.timer
+        owner: root
+        group: root
+        mode: '0644'
+        content: |
+          [Unit]
+          Description=Aide check every day at 5AM
+
+          [Timer]
+          OnCalendar=*-*-* 05:00:00
+          Unit=aidecheck.service
+
+          [Install]
+          WantedBy=timers.target
+
+    - name: Reload systemd and enable AIDE check service and timer (CIS 1.3.2)
+      ansible.builtin.systemd:
+        daemon_reload: true
+        name: "{{ item.name }}"
+        enabled: true
+        state: "{{ item.state }}"
+      loop:
+        - {name: aidecheck.service, state: stopped}
+        - {name: aidecheck.timer, state: started}
+
+    # CIS 1.1.6.4 — Ensure nosuid on /var/log/audit
+    # T1548.001: attacker writes setuid binary to audit partition to escalate privileges
+    # M1022: nosuid prevents setuid/setgid bits from taking effect on this filesystem
+    - name: Add nosuid to /var/log/audit in /etc/fstab (CIS 1.1.6.4 / T1548.001)
+      ansible.builtin.replace:
+        path: /etc/fstab
+        regexp: '^(\S+\s+/var/log/audit\s+\S+\s+)(\S+)(\s+.*)$'
+        replace: '\1\2,nosuid\3'
+      when: >
+        lookup('file', '/etc/fstab') is search('\s/var/log/audit\s')
+        and lookup('file', '/etc/fstab') is not search('\s/var/log/audit\s\S*nosuid')
+
+    - name: Remount /var/log/audit with nosuid (CIS 1.1.6.4)
+      ansible.posix.mount:
+        path: /var/log/audit
+        state: remounted
+      when: lookup('file', '/proc/mounts') is search('\s/var/log/audit\s')
+
+    # CIS 1.1.4.4 — Ensure nodev on /var/tmp
+    # T1499.001: device files in world-writable /var/tmp can interact with raw hardware or cause DoS
+    # M1022: nodev prevents block/character special devices from being created on this filesystem
+    - name: Add nodev to /var/tmp in /etc/fstab (CIS 1.1.4.4 / T1499.001)
+      ansible.builtin.replace:
+        path: /etc/fstab
+        regexp: '^(\S+\s+/var/tmp\s+\S+\s+)(\S+)(\s+.*)$'
+        replace: '\1\2,nodev\3'
+      when: >
+        lookup('file', '/etc/fstab') is search('\s/var/tmp\s')
+        and lookup('file', '/etc/fstab') is not search('\s/var/tmp\s\S*nodev')
+
+    - name: Remount /var/tmp with nodev (CIS 1.1.4.4)
+      ansible.posix.mount:
+        path: /var/tmp
+        state: remounted
+      when: lookup('file', '/proc/mounts') is search('\s/var/tmp\s')
+
+    # CIS 4.2.2.4 — Ensure journald logs persist to disk
+    # T1070.002: volatile journal (default) is lost on reboot — attacker-triggered reboot destroys forensic evidence
+    # T1562.006: log storage=auto only writes to disk if /var/log/journal exists; persistent guarantees it
+    - name: Set journald Storage=persistent (CIS 4.2.2.4 / T1070.002)
+      ansible.builtin.lineinfile:
+        path: /etc/systemd/journald.conf
+        regexp: '^\s*#?\s*Storage='
+        line: 'Storage=persistent'
+
+    - name: Restart systemd-journald to apply persistent storage (CIS 4.2.2.4)
+      ansible.builtin.systemd:
+        name: systemd-journald
+        state: restarted
+
+    # CIS 1.1.3.3 — Ensure nosuid on /var
+    # T1548.001: setuid binary dropped in /var (logs, spool, cache) allows privilege escalation
+    # M1022: nosuid prevents setuid/setgid bits taking effect — /var has no legitimate need for them
+    - name: Add nosuid to /var in /etc/fstab (CIS 1.1.3.3 / T1548.001)
+      ansible.builtin.replace:
+        path: /etc/fstab
+        regexp: '^(\S+\s+/var\s+\S+\s+)(\S+)(\s+.*)$'
+        replace: '\1\2,nosuid\3'
+      when: >
+        lookup('file', '/etc/fstab') is search('\s/var\s')
+        and lookup('file', '/etc/fstab') is not search('\s/var\s\S*nosuid')
+
+    - name: Remount /var with nosuid (CIS 1.1.3.3)
+      ansible.posix.mount:
+        path: /var
+        state: remounted
+      when: lookup('file', '/proc/mounts') is search('\s/var\s')
+
+    # CIS 1.1.6.3 — Ensure nodev on /var/log/audit
+    # T1200: hardware device files on the audit partition could be used to interact with physical devices
+    # M1022: nodev blocks creation of block/character special devices on this filesystem
+    - name: Add nodev to /var/log/audit in /etc/fstab (CIS 1.1.6.3 / T1200)
+      ansible.builtin.replace:
+        path: /etc/fstab
+        regexp: '^(\S+\s+/var/log/audit\s+\S+\s+)(\S+)(\s+.*)$'
+        replace: '\1\2,nodev\3'
+      when: >
+        lookup('file', '/etc/fstab') is search('\s/var/log/audit\s')
+        and lookup('file', '/etc/fstab') is not search('\s/var/log/audit\s\S*nodev')
+
+    - name: Remount /var/log/audit with nodev (CIS 1.1.6.3)
+      ansible.posix.mount:
+        path: /var/log/audit
+        state: remounted
+      when: lookup('file', '/proc/mounts') is search('\s/var/log/audit\s')
+
+    # CIS 5.4.3 — Ensure password reuse is limited (remember >= 5)
+    # T1110.002: password spray/cracking is amplified when users recycle recent passwords after forced rotation
+    # Edit authselect custom profile — never edit /etc/pam.d/ directly on Fedora (authselect overwrites it)
+    - name: Enforce password history remember=5 in authselect custom profile (CIS 5.4.3 / T1110.002)
+      ansible.builtin.shell: |
+        set -o pipefail
+        profile=$(head -1 /etc/authselect/authselect.conf | grep 'custom/')
+        file="/etc/authselect/${profile}/system-auth"
+        if grep -Pq '^\s*password\s+(requisite|required|sufficient)\s+pam_pwhistory\.so' "$file"; then
+          if grep -Pq 'pam_pwhistory\.so.*remember=\d+' "$file"; then
+            sed -ri 's/(pam_pwhistory\.so.*)(remember=\d+)/\1remember=5/' "$file"
+          else
+            sed -ri '/pam_pwhistory\.so/ s/$/ remember=5/' "$file"
+          fi
+        else
+          sed -ri '/^\s*password\s+(requisite|required|sufficient)\s+pam_unix\.so/i password required pam_pwhistory.so remember=5 use_authtok' "$file"
+        fi
+        if grep -Pq 'pam_unix\.so.*remember=\d+' "$file"; then
+          sed -ri 's/(pam_unix\.so.*)(remember=\d+)/\1remember=5/' "$file"
+        else
+          sed -ri '/^\s*password\s+(requisite|required|sufficient)\s+pam_unix\.so/ s/$/ remember=5/' "$file"
+        fi
+        authselect apply-changes
+      changed_when: false
+
+    # CIS 5.5.1 — Ensure password creation requirements are configured
+    # T1110/T1110.001: brute force and password spray succeed faster against short, simple passwords
+    # Two-part fix: pwquality.conf sets length/complexity; authselect profile sets retry=3 + enforce_for_root
+    - name: Set password quality requirements in /etc/security/pwquality.conf (CIS 5.5.1 / T1110)
+      ansible.builtin.lineinfile:
+        path: /etc/security/pwquality.conf
+        regexp: "{{ item.regexp }}"
+        line: "{{ item.line }}"
+      loop:
+        - {regexp: '^\s*minlen\s*=', line: 'minlen = 14'}
+        - {regexp: '^\s*minclass\s*=', line: 'minclass = 4'}
+
+    - name: Set pam_pwquality retry=3 and enforce_for_root in authselect custom profile (CIS 5.5.1)
+      ansible.builtin.shell: |
+        set -o pipefail
+        profile=$(head -1 /etc/authselect/authselect.conf | grep 'custom/')
+        for fn in system-auth password-auth; do
+          file="/etc/authselect/${profile}/${fn}"
+          if ! grep -Pq 'pam_pwquality\.so.*enforce_for_root' "$file"; then
+            sed -ri 's/^(\s*password\s+requisite\s+pam_pwquality\.so\s+.*)$/\1 enforce_for_root/' "$file"
+          fi
+          if grep -Pq 'pam_pwquality\.so.*retry=[4-9]' "$file"; then
+            sed -ri '/pwquality/s/retry=\S+/retry=3/' "$file"
+          elif ! grep -Pq 'pam_pwquality\.so.*retry=\d+' "$file"; then
+            sed -ri 's/^(\s*password\s+requisite\s+pam_pwquality\.so\s+.*)$/\1 retry=3/' "$file"
+          fi
+        done
+        authselect apply-changes
+      changed_when: false

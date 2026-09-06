@@ -1,0 +1,646 @@
+#THIS IS AN ATTEMPT TO REDUCE ATTACK SURFACE BY ELIMINATING DOCKER IN FAVOR OF QUADLETS
+#CURRENTLY CONNECTS AND LAUNCHES, FAILS AT DASHBOARD SERVICE COMMUNNICATION, LIKE VULN DECTECTION
+
+
+#!/usr/bin/env bash
+#===============================================================================
+# Wazuh Single-Node Quadlet Deployment Script
+# Generates TLS certs, creates all Quadlet unit files, and starts the stack.
+#===============================================================================
+set -euo pipefail
+
+#---------------------------------------
+# CONFIGURATION — CHANGE THESE
+#---------------------------------------
+WAZUH_VERSION="4.9.2"
+QUADLET_DIR="/etc/containers/systemd"
+CERT_DIR="/etc/wazuh-certs"
+CONFIG_DIR="/etc/wazuh-config"
+DATA_DIR="/var/lib/wazuh"
+
+# Passwords
+# NOTE: Wazuh 4.9.2 images ship with fixed default passwords that OPENSEARCH_INITIAL_ADMIN_PASSWORD
+# does not override at runtime. admin:admin and kibanaserver:kibanaserver are the image defaults.
+# For production: run securityadmin.sh inside the indexer after first boot to set custom passwords.
+INDEXER_ADMIN_PASS="admin"
+DASHBOARD_PASS="kibanaserver"
+API_USER="wazuh-wui"
+API_PASS="W4zuh_AP1@2024"
+
+# Network — subnet for the Podman bridge; containers resolve each other by hostname
+SUBNET="172.25.0.0/24"
+# Internal container IPs — embedded in TLS cert SANs for container-to-container mTLS
+INDEXER_IP="172.25.0.10"
+MANAGER_IP="172.25.0.11"
+DASHBOARD_IP="172.25.0.12"
+# Host IP — added to dashboard cert SAN so browser access via host IP is cert-valid
+HOST_IP=$(hostname -I | awk '{print $1}')
+
+# TLS Certificate Details
+CERT_COUNTRY="US"
+CERT_STATE="CA"
+CERT_CITY="San Francisco"
+CERT_ORG="MyOrg"
+CERT_DAYS=3650
+
+#---------------------------------------
+# COLORS
+#---------------------------------------
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+CYAN='\033[0;36m'
+NC='\033[0m'
+
+log()  { echo -e "${GREEN}[✔]${NC} $1"; }
+warn() { echo -e "${YELLOW}[!]${NC} $1"; }
+err()  { echo -e "${RED}[✘]${NC} $1"; exit 1; }
+step() { echo -e "\n${CYAN}===> $1${NC}"; }
+
+#---------------------------------------
+# PRE-FLIGHT CHECKS
+#---------------------------------------
+step "Running pre-flight checks"
+
+[[ $EUID -ne 0 ]] && err "This script must be run as root."
+
+for cmd in podman openssl systemctl; do
+    command -v "$cmd" &>/dev/null || err "'$cmd' is not installed."
+done
+
+log "All dependencies found."
+
+# Docker's nftables rules (table ip filter, FORWARD policy drop) block Podman container
+# egress even when Docker is not running — Docker does not flush its nftables tables on
+# stop. If Docker is installed and its nftables tables are present, container traffic
+# from 172.25.0.0/24 is silently dropped before netavark's ACCEPT rules ever evaluate.
+if systemctl is-active --quiet docker || nft list table ip filter &>/dev/null 2>&1; then
+    warn "Docker nftables rules detected — stopping Docker to prevent FORWARD policy drop"
+    systemctl stop docker docker.socket &>/dev/null || true
+    systemctl disable docker docker.socket &>/dev/null || true
+    nft delete table ip filter &>/dev/null || true
+    nft delete table ip nat &>/dev/null || true
+    nft delete table ip6 filter &>/dev/null || true
+    nft delete table ip6 nat &>/dev/null || true
+    nft delete table ip raw &>/dev/null || true
+    log "Docker tables flushed — container egress unblocked."
+fi
+
+# Remove any /etc/hosts entries for Wazuh hostnames — Podman copies the host
+# /etc/hosts into every container, so stale entries poison internal DNS.
+for host in wazuh.indexer wazuh.manager wazuh.dashboard; do
+    if grep -q "^[^#].*$host" /etc/hosts 2>/dev/null; then
+        sed -i "/[[:space:]]${host}\([[:space:]]\|$\)/d" /etc/hosts
+        warn "Removed '$host' from /etc/hosts (would poison container DNS)"
+    fi
+done
+
+#---------------------------------------
+# CREATE DIRECTORIES
+#---------------------------------------
+step "Creating directories"
+
+mkdir -p "$QUADLET_DIR"
+mkdir -p "$CERT_DIR"/{indexer,manager,dashboard,root-ca,admin}
+mkdir -p "$CONFIG_DIR"
+mkdir -p "$DATA_DIR"/{indexer-data,manager-data,manager-etc,dashboard-config}
+
+log "Directories created."
+
+#---------------------------------------
+# GENERATE TLS CERTIFICATES
+#---------------------------------------
+step "Generating TLS certificates"
+
+# --- Root CA ---
+openssl genrsa -out "$CERT_DIR/root-ca/root-ca-key.pem" 4096 2>/dev/null
+openssl req -new -x509 -sha256 \
+    -key "$CERT_DIR/root-ca/root-ca-key.pem" \
+    -out "$CERT_DIR/root-ca/root-ca.pem" \
+    -days "$CERT_DAYS" \
+    -subj "/C=$CERT_COUNTRY/ST=$CERT_STATE/L=$CERT_CITY/O=$CERT_ORG/CN=Wazuh Root CA" \
+    2>/dev/null
+
+log "Root CA generated."
+
+generate_cert() {
+    local name="$1"
+    local ip="$2"
+    local extra_ip="${3:-}"   # optional host IP added to SAN (dashboard only)
+    local dir="$CERT_DIR/$name"
+
+    # Build SAN IP block — always include container IP and loopback;
+    # append host IP as IP.3 when provided (dashboard cert for browser access)
+    local san_ips="IP.1  = $ip
+IP.2  = 127.0.0.1"
+    [[ -n "$extra_ip" ]] && san_ips+="
+IP.3  = $extra_ip"
+
+    # Create SAN config
+    cat > "$dir/san.cnf" <<SANEOF
+[req]
+distinguished_name = req_dn
+req_extensions = v3_req
+prompt = no
+
+[req_dn]
+C  = $CERT_COUNTRY
+ST = $CERT_STATE
+L  = $CERT_CITY
+O  = $CERT_ORG
+CN = wazuh-$name
+
+[v3_req]
+subjectAltName = @alt_names
+
+[alt_names]
+DNS.1 = wazuh.$name
+DNS.2 = wazuh-$name
+DNS.3 = localhost
+$san_ips
+SANEOF
+
+    # Private key
+    openssl genrsa -out "$dir/$name-key.pem" 4096 2>/dev/null
+
+    # CSR
+    openssl req -new -sha256 \
+        -key "$dir/$name-key.pem" \
+        -out "$dir/$name.csr" \
+        -config "$dir/san.cnf" \
+        2>/dev/null
+
+    # Sign with Root CA
+    openssl x509 -req -sha256 \
+        -in "$dir/$name.csr" \
+        -CA "$CERT_DIR/root-ca/root-ca.pem" \
+        -CAkey "$CERT_DIR/root-ca/root-ca-key.pem" \
+        -CAcreateserial \
+        -out "$dir/$name.pem" \
+        -days "$CERT_DAYS" \
+        -extensions v3_req \
+        -extfile "$dir/san.cnf" \
+        2>/dev/null
+
+    # Copy root CA into each component dir for convenience
+    cp "$CERT_DIR/root-ca/root-ca.pem" "$dir/root-ca.pem"
+
+    local extra_note=""
+    [[ -n "$extra_ip" ]] && extra_note=" + host $extra_ip"
+    log "Certificate generated for $name ($ip$extra_note)"
+}
+
+generate_cert "indexer"   "$INDEXER_IP"
+generate_cert "manager"   "$MANAGER_IP"
+generate_cert "dashboard" "$DASHBOARD_IP" "$HOST_IP"
+
+# --- Admin cert (separate from node cert — required by OpenSearch security plugin) ---
+openssl genrsa -out "$CERT_DIR/admin/admin-key.pem" 4096 2>/dev/null
+openssl req -new -sha256 \
+    -key "$CERT_DIR/admin/admin-key.pem" \
+    -out "$CERT_DIR/admin/admin.csr" \
+    -subj "/C=$CERT_COUNTRY/ST=$CERT_STATE/L=$CERT_CITY/O=$CERT_ORG/CN=admin" \
+    2>/dev/null
+openssl x509 -req -sha256 \
+    -in "$CERT_DIR/admin/admin.csr" \
+    -CA "$CERT_DIR/root-ca/root-ca.pem" \
+    -CAkey "$CERT_DIR/root-ca/root-ca-key.pem" \
+    -CAcreateserial \
+    -out "$CERT_DIR/admin/admin.pem" \
+    -days "$CERT_DAYS" \
+    2>/dev/null
+chmod 644 "$CERT_DIR/admin/admin.pem"
+chmod 600 "$CERT_DIR/admin/admin-key.pem"
+log "Admin certificate generated."
+
+# Set permissions — keys are 644 because container processes run as non-root
+# and cannot read 600-owned root files. SELinux :Z label is the access boundary.
+chmod 644 "$CERT_DIR"/{indexer,manager,dashboard,admin}/*.pem
+chmod 644 "$CERT_DIR"/{indexer,manager,dashboard,admin}/*-key.pem
+chmod 644 "$CERT_DIR"/root-ca/root-ca.pem
+
+log "All certificates generated and secured."
+
+#---------------------------------------
+# GENERATE opensearch.yml
+# The wazuh-indexer image reads TLS and security-plugin config from opensearch.yml.
+# Passing plugins.security.* as env vars is ignored by the image entrypoint.
+#---------------------------------------
+step "Generating opensearch.yml"
+
+cat > "$CONFIG_DIR/opensearch.yml" <<OSEOF
+network.host: "0.0.0.0"
+node.name: "wazuh.indexer"
+cluster.name: "wazuh-cluster"
+path.data: /var/lib/wazuh-indexer
+path.logs: /var/log/wazuh-indexer
+discovery.type: single-node
+compatibility.override_main_response_version: true
+
+# TLS — cert paths must match volume mounts in wazuh-indexer.container
+plugins.security.ssl.http.pemcert_filepath: /usr/share/wazuh-indexer/config/certs/indexer.pem
+plugins.security.ssl.http.pemkey_filepath: /usr/share/wazuh-indexer/config/certs/indexer-key.pem
+plugins.security.ssl.http.pemtrustedcas_filepath: /usr/share/wazuh-indexer/config/certs/root-ca.pem
+plugins.security.ssl.transport.pemcert_filepath: /usr/share/wazuh-indexer/config/certs/indexer.pem
+plugins.security.ssl.transport.pemkey_filepath: /usr/share/wazuh-indexer/config/certs/indexer-key.pem
+plugins.security.ssl.transport.pemtrustedcas_filepath: /usr/share/wazuh-indexer/config/certs/root-ca.pem
+plugins.security.ssl.http.enabled: true
+plugins.security.ssl.transport.enforce_hostname_verification: false
+plugins.security.ssl.transport.resolve_hostname: false
+
+# Admin cert DN — must match CN in admin.pem (separate from node cert)
+plugins.security.authcz.admin_dn:
+  - "CN=admin,O=${CERT_ORG},L=${CERT_CITY},ST=${CERT_STATE},C=${CERT_COUNTRY}"
+
+# Node cert DN — must match CN in indexer.pem
+plugins.security.nodes_dn:
+  - "CN=wazuh-indexer,O=${CERT_ORG},L=${CERT_CITY},ST=${CERT_STATE},C=${CERT_COUNTRY}"
+
+plugins.security.restapi.roles_enabled:
+  - "all_access"
+  - "security_rest_api_access"
+plugins.security.check_snapshot_restore_write_privileges: true
+plugins.security.enable_snapshot_restore_privilege: true
+plugins.security.allow_default_init_securityindex: true
+cluster.routing.allocation.disk.threshold_enabled: false
+OSEOF
+
+log "opensearch.yml written to $CONFIG_DIR/opensearch.yml"
+
+#---------------------------------------
+# GENERATE opensearch_dashboards.yml
+# The dashboard image's entrypoint does NOT reliably rewrite opensearch.hosts
+# from env vars — mount the config file directly so it can't be overridden.
+#---------------------------------------
+step "Generating opensearch_dashboards.yml"
+
+cat > "$CONFIG_DIR/opensearch_dashboards.yml" <<ODBEOF
+server.host: 0.0.0.0
+server.port: 5601
+opensearch.hosts: ["https://wazuh.indexer:9200"]
+opensearch.ssl.verificationMode: certificate
+opensearch.requestHeadersWhitelist: ["securitytenant","Authorization"]
+opensearch_security.multitenancy.enabled: false
+opensearch_security.readonly_mode.roles: ["kibana_read_only"]
+
+# TLS for the HTTPS endpoint — cert paths must match volume mounts in wazuh-dashboard.container
+server.ssl.enabled: true
+server.ssl.key: "/usr/share/wazuh-dashboard/certs/dashboard-key.pem"
+server.ssl.certificate: "/usr/share/wazuh-dashboard/certs/dashboard.pem"
+opensearch.ssl.certificateAuthorities: ["/usr/share/wazuh-dashboard/certs/root-ca.pem"]
+
+uiSettings.overrides.defaultRoute: /app/wz-home
+opensearch_security.cookie.ttl: 900000
+opensearch_security.session.ttl: 900000
+opensearch_security.session.keepalive: true
+ODBEOF
+
+log "opensearch_dashboards.yml written to $CONFIG_DIR/opensearch_dashboards.yml"
+
+#---------------------------------------
+# GENERATE wazuh.yml (Wazuh API credentials for the dashboard plugin)
+# IMPORTANT: must be EMPTY on first boot. The dashboard entrypoint reads
+# WAZUH_API_URL / API_USERNAME / API_PASSWORD env vars and writes its own
+# hosts: block. Pre-populating this file creates a duplicate hosts: key
+# (invalid YAML) that crashes the dashboard plugin on startup.
+#---------------------------------------
+step "Creating wazuh.yml (empty — entrypoint writes from env vars)"
+
+: > "$CONFIG_DIR/wazuh.yml"
+chmod 666 "$CONFIG_DIR/wazuh.yml"
+log "wazuh.yml created (empty, writable)"
+
+#---------------------------------------
+# CREATE QUADLET UNIT FILES
+#---------------------------------------
+step "Creating Quadlet unit files"
+
+# --- Network ---
+cat > "$QUADLET_DIR/wazuh.network" <<EOF
+[Network]
+Driver=bridge
+Subnet=$SUBNET
+DNS=1.1.1.1
+DNS=8.8.8.8
+EOF
+# Note: Quadlet names the network systemd-<filename> regardless of NetworkName=.
+# Containers reference the actual name: systemd-wazuh
+log "Created wazuh.network"
+
+# --- Volumes ---
+for vol in wazuh-indexer-data wazuh-manager-data wazuh-manager-etc wazuh-manager-logs; do
+    cat > "$QUADLET_DIR/${vol}.volume" <<EOF
+[Volume]
+VolumeName=$vol
+EOF
+    log "Created ${vol}.volume"
+done
+
+# --- Wazuh Indexer ---
+cat > "$QUADLET_DIR/wazuh-indexer.container" <<EOF
+[Unit]
+Description=Wazuh Indexer (OpenSearch)
+After=network-online.target
+Wants=network-online.target
+
+[Container]
+ContainerName=wazuh.indexer
+Image=docker.io/wazuh/wazuh-indexer:${WAZUH_VERSION}
+Network=systemd-wazuh
+HostName=wazuh.indexer
+
+# SELinux: certs live in /etc/ — :Z MCS relabeling conflicts across containers.
+# Disable label enforcement so all three containers can share the same cert files.
+SecurityLabelDisable=true
+
+# Loopback-only — manager and dashboard connect via the internal quadlet network
+PublishPort=127.0.0.1:9200:9200
+
+# opensearch.yml — TLS cert paths, cluster settings, security plugin config
+Volume=${CONFIG_DIR}/opensearch.yml:/usr/share/wazuh-indexer/opensearch.yml:ro
+
+# TLS certificates — target paths must match opensearch.yml references
+Volume=${CERT_DIR}/root-ca/root-ca.pem:/usr/share/wazuh-indexer/config/certs/root-ca.pem:ro
+Volume=${CERT_DIR}/indexer/indexer.pem:/usr/share/wazuh-indexer/config/certs/indexer.pem:ro
+Volume=${CERT_DIR}/indexer/indexer-key.pem:/usr/share/wazuh-indexer/config/certs/indexer-key.pem:ro
+Volume=${CERT_DIR}/admin/admin.pem:/usr/share/wazuh-indexer/config/certs/admin.pem:ro
+Volume=${CERT_DIR}/admin/admin-key.pem:/usr/share/wazuh-indexer/config/certs/admin-key.pem:ro
+
+# Persistent data
+Volume=wazuh-indexer-data.volume:/var/lib/wazuh-indexer
+
+# JVM heap — quoted so systemd treats the entire value as a single token
+Environment="OPENSEARCH_JAVA_OPTS=-Xms1g -Xmx1g"
+Environment=OPENSEARCH_INITIAL_ADMIN_PASSWORD=${INDEXER_ADMIN_PASS}
+
+# Native Quadlet ulimit directives (not PodmanArgs)
+Ulimit=memlock=-1:-1
+Ulimit=nofile=65536:65536
+
+Label=project=wazuh-siem
+Label=component=indexer
+
+[Service]
+Restart=on-failure
+RestartSec=30
+TimeoutStartSec=300
+
+[Install]
+WantedBy=multi-user.target default.target
+EOF
+log "Created wazuh-indexer.container"
+
+# --- Wazuh Manager ---
+cat > "$QUADLET_DIR/wazuh-manager.container" <<EOF
+[Unit]
+Description=Wazuh Manager
+After=network-online.target wazuh-indexer.service
+Wants=network-online.target
+Requires=wazuh-indexer.service
+
+[Container]
+ContainerName=wazuh.manager
+Image=docker.io/wazuh/wazuh-manager:${WAZUH_VERSION}
+Network=systemd-wazuh
+HostName=wazuh.manager
+
+# Agent registration (1514), enrollment (1515), syslog (514 UDP)
+# API (55000) — loopback only; dashboard connects via internal network
+PublishPort=1514:1514
+PublishPort=1515:1515
+PublishPort=514:514/udp
+PublishPort=127.0.0.1:55000:55000
+
+# TLS certs for Filebeat → Indexer mTLS
+Volume=${CERT_DIR}/root-ca/root-ca.pem:/etc/ssl/root-ca.pem:ro,Z
+Volume=${CERT_DIR}/manager/manager.pem:/etc/ssl/manager.pem:ro,Z
+Volume=${CERT_DIR}/manager/manager-key.pem:/etc/ssl/manager-key.pem:ro,Z
+
+# Persistent volumes — rules, decoders, config, and logs survive container rebuild
+Volume=wazuh-manager-data.volume:/var/ossec/data:Z
+Volume=wazuh-manager-etc.volume:/var/ossec/etc:Z
+Volume=wazuh-manager-logs.volume:/var/ossec/logs:Z
+
+# Hostname-based indexer URL — resolves via Podman internal DNS
+Environment=INDEXER_URL=https://wazuh.indexer:9200
+Environment=INDEXER_USERNAME=admin
+Environment=INDEXER_PASSWORD=${INDEXER_ADMIN_PASS}
+Environment=FILEBEAT_SSL_VERIFICATION_MODE=full
+Environment=SSL_CERTIFICATE_AUTHORITIES=/etc/ssl/root-ca.pem
+Environment=SSL_CERTIFICATE=/etc/ssl/manager.pem
+Environment=SSL_KEY=/etc/ssl/manager-key.pem
+Environment=API_USERNAME=${API_USER}
+Environment=API_PASSWORD=${API_PASS}
+
+Label=project=wazuh-siem
+Label=component=manager
+
+[Service]
+Restart=on-failure
+RestartSec=30
+TimeoutStartSec=300
+# Fix ossec.conf <indexer> block after every start — the entrypoint regenerates
+# it with host=0.0.0.0 and wrong cert paths on each container boot.
+ExecStartPost=/usr/local/bin/wazuh-fix-ossec
+
+[Install]
+WantedBy=multi-user.target default.target
+EOF
+log "Created wazuh-manager.container"
+
+# --- Wazuh Dashboard ---
+cat > "$QUADLET_DIR/wazuh-dashboard.container" <<EOF
+[Unit]
+Description=Wazuh Dashboard
+After=network-online.target wazuh-indexer.service wazuh-manager.service
+Wants=network-online.target
+Requires=wazuh-indexer.service wazuh-manager.service
+
+[Container]
+ContainerName=wazuh.dashboard
+Image=docker.io/wazuh/wazuh-dashboard:${WAZUH_VERSION}
+Network=systemd-wazuh
+HostName=wazuh.dashboard
+
+PublishPort=443:5601
+
+# SELinux policy blocks :Z relabeling of files in /etc/ — disable label
+# enforcement for this container so bind mounts are accessible.
+SecurityLabelDisable=true
+
+# opensearch_dashboards.yml — indexer URL, TLS, session config.
+# Mounted directly so the image entrypoint cannot fall back to localhost:9200.
+Volume=${CONFIG_DIR}/opensearch_dashboards.yml:/usr/share/wazuh-dashboard/config/opensearch_dashboards.yml:ro
+
+# wazuh.yml — Wazuh API credentials for the dashboard plugin
+Volume=${CONFIG_DIR}/wazuh.yml:/usr/share/wazuh-dashboard/data/wazuh/config/wazuh.yml
+
+# TLS certificates — target paths must match opensearch_dashboards.yml references
+Volume=${CERT_DIR}/root-ca/root-ca.pem:/usr/share/wazuh-dashboard/certs/root-ca.pem:ro
+Volume=${CERT_DIR}/dashboard/dashboard.pem:/usr/share/wazuh-dashboard/certs/dashboard.pem:ro
+Volume=${CERT_DIR}/dashboard/dashboard-key.pem:/usr/share/wazuh-dashboard/certs/dashboard-key.pem:ro
+
+# OPENSEARCH_HOSTS is read by wazuh_app_config.sh and passed as a CLI arg
+# to the node process — this OVERRIDES opensearch_dashboards.yml at runtime
+Environment=OPENSEARCH_HOSTS=https://wazuh.indexer:9200
+Environment=INDEXER_USERNAME=admin
+Environment=INDEXER_PASSWORD=${INDEXER_ADMIN_PASS}
+Environment=WAZUH_API_URL=https://wazuh.manager
+Environment=DASHBOARD_USERNAME=kibanaserver
+Environment=DASHBOARD_PASSWORD=${DASHBOARD_PASS}
+Environment=API_USERNAME=${API_USER}
+Environment=API_PASSWORD=${API_PASS}
+
+Label=project=wazuh-siem
+Label=component=dashboard
+
+[Service]
+Restart=on-failure
+RestartSec=30
+TimeoutStartSec=300
+
+[Install]
+WantedBy=multi-user.target default.target
+EOF
+log "Created wazuh-dashboard.container"
+
+#---------------------------------------
+# OSSEC.CONF POST-START FIX SCRIPT
+# The wazuh-manager entrypoint regenerates the <indexer> block in ossec.conf
+# with host=0.0.0.0 and cert paths under /etc/filebeat/certs/ (which doesn't
+# exist in our container). Write this fix as a host-side script invoked via
+# ExecStartPost so it runs automatically on every manager start/restart.
+#---------------------------------------
+step "Writing ossec.conf post-start fix script"
+
+cat > /usr/local/bin/wazuh-fix-ossec << 'FIXSCRIPT'
+#!/bin/bash
+# Run 30 s after wazuh-manager starts so the entrypoint has finished writing ossec.conf
+sleep 30
+podman exec wazuh.manager python3 - << 'PYEOF'
+f='/var/ossec/etc/ossec.conf'
+c=open(f).read()
+c=c.replace('https://0.0.0.0:9200','https://wazuh.indexer:9200')
+c=c.replace('/etc/filebeat/certs/root-ca.pem','/etc/ssl/root-ca.pem')
+c=c.replace('/etc/filebeat/certs/filebeat.pem','/etc/ssl/manager.pem')
+c=c.replace('/etc/filebeat/certs/filebeat-key.pem','/etc/ssl/manager-key.pem')
+open(f,'w').write(c)
+print('ossec.conf patched')
+PYEOF
+FIXSCRIPT
+chmod 755 /usr/local/bin/wazuh-fix-ossec
+log "Wrote /usr/local/bin/wazuh-fix-ossec"
+
+#---------------------------------------
+# KERNEL TUNING (for OpenSearch)
+#---------------------------------------
+step "Applying kernel tuning"
+
+SYSCTL_FILE="/etc/sysctl.d/99-wazuh.conf"
+cat > "$SYSCTL_FILE" <<EOF
+# Wazuh Indexer (OpenSearch) requires this
+vm.max_map_count=262144
+EOF
+sysctl --system &>/dev/null
+
+log "vm.max_map_count set to 262144"
+
+#---------------------------------------
+# FIREWALL (optional — skip if no firewalld)
+#---------------------------------------
+if command -v firewall-cmd &>/dev/null && systemctl is-active --quiet firewalld; then
+    step "Configuring firewall"
+    for port in 443/tcp 1514/tcp 1515/tcp 514/udp 55000/tcp; do
+        firewall-cmd --permanent --add-port="$port" &>/dev/null
+    done
+    # Masquerade is required for container egress to the internet.
+    # Podman uses netavark with the firewalld driver when firewalld is active.
+    # The podman bridge (podman1) lands in the trusted zone, but that zone has
+    # masquerade=no by default. Without masquerade, container traffic exits the
+    # host with a private 172.x.x.x source IP that is unroutable — causing TCP
+    # timeouts when Wazuh tries to reach feed.wazuh.com for CVE feed updates.
+    firewall-cmd --permanent --zone=trusted --add-masquerade &>/dev/null
+    firewall-cmd --reload &>/dev/null
+    log "Firewall rules applied (ports + container masquerade)."
+else
+    warn "firewalld not running — skipping firewall config. Open ports manually if needed."
+fi
+
+#---------------------------------------
+# RELOAD & START
+#---------------------------------------
+step "Reloading systemd and starting Wazuh stack"
+
+systemctl daemon-reload
+log "systemd reloaded."
+
+# Pull images first
+for component in wazuh-indexer wazuh-manager wazuh-dashboard; do
+    step "Pulling image: wazuh/$component:$WAZUH_VERSION"
+    podman pull "docker.io/wazuh/$component:$WAZUH_VERSION"
+    log "Pulled wazuh/$component:$WAZUH_VERSION"
+done
+
+# Start services in order.
+# Quadlet-generated units live in /run/systemd/generator/ — systemctl enable
+# refuses transient units. WantedBy=multi-user.target in the unit file handles
+# boot-time activation automatically; just start them now.
+for svc in wazuh-indexer wazuh-manager wazuh-dashboard; do
+    step "Starting $svc"
+    systemctl start "$svc.service"
+    log "$svc started."
+done
+
+#---------------------------------------
+# POST-START: ossec.conf IS PATCHED AUTOMATICALLY
+# ExecStartPost=/usr/local/bin/wazuh-fix-ossec in wazuh-manager.container
+# fires 30 s after start — covers initial boot and every future restart.
+#---------------------------------------
+log "ossec.conf will be auto-patched by ExecStartPost (30 s after manager starts)"
+
+#---------------------------------------
+# SUMMARY
+#---------------------------------------
+step "Deployment complete!"
+
+cat <<SUMMARY
+
+${GREEN}╔══════════════════════════════════════════════════════════════╗
+║                 WAZUH DEPLOYMENT SUMMARY                     ║
+╠══════════════════════════════════════════════════════════════╣
+║                                                              ║
+║  Dashboard URL:   https://$(hostname -f)                     ║
+║                                                              ║
+║  API Username:    ${API_USER}                                ║
+║  API Password:    ${API_PASS}                                ║
+║                                                              ║
+║  Indexer Admin:   admin                                      ║
+║  Indexer Pass:    ${INDEXER_ADMIN_PASS}                      ║
+║                                                              ║
+║  Dashboard User:  kibanaserver                               ║
+║  Dashboard Pass:  ${DASHBOARD_PASS}                          ║
+║                                                              ║
+║  Certs Location:  ${CERT_DIR}                                ║
+║  Config Dir:      ${CONFIG_DIR}                              ║
+║  Quadlet Files:   ${QUADLET_DIR}                             ║
+║                                                              ║
+║  Services:                                                   ║
+║    systemctl status wazuh-indexer                            ║
+║    systemctl status wazuh-manager                            ║
+║    systemctl status wazuh-dashboard                          ║
+║                                                              ║
+║  Logs:                                                       ║
+║    journalctl -u wazuh-indexer -f                            ║
+║    journalctl -u wazuh-manager -f                            ║
+║    journalctl -u wazuh-dashboard -f                          ║
+║                                                              ║
+║  Filter containers:                                          ║
+║    podman ps --filter label=project=wazuh-siem               ║
+║                                                              ║
+╠══════════════════════════════════════════════════════════════╣
+║  ⚠  CHANGE ALL DEFAULT PASSWORDS FOR PRODUCTION USE  ⚠      ║
+╚══════════════════════════════════════════════════════════════╝${NC}
+
+SUMMARY
+
+log "All done. Give it 1-2 minutes for services to fully initialize."

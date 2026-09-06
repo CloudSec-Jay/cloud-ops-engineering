@@ -1,0 +1,18 @@
+# Default deny-all network policy
+# Apply this to every namespace as a baseline.
+# Add explicit allow rules on top.
+#
+# Without this, all pods in a namespace can communicate freely.
+# With this, nothing communicates until explicitly permitted.
+
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-all
+  namespace: application   # change per namespace
+spec:
+  podSelector: {}           # applies to all pods in namespace
+  policyTypes:
+    - Ingress
+    - Egress
+  # No ingress or egress rules = deny all

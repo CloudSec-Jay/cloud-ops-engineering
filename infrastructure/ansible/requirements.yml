@@ -1,0 +1,11 @@
+---
+# Ansible Galaxy role dependencies
+# Install with: ansible-galaxy role install -r requirements.yml
+
+roles:
+  # CIS RHEL 9 Level 1 — maintained by ansible-lockdown / CIS community
+  # Covers all 6 sections, 300+ tasks, Level 1 + Level 2 profiles
+  # https://github.com/ansible-lockdown/RHEL9-CIS
+  - name: ansible-lockdown.RHEL9-CIS
+    src: https://github.com/ansible-lockdown/RHEL9-CIS
+    version: "2.0.0"

@@ -1,0 +1,175 @@
+name: Security Pipeline
+
+#runs job on every branch push/pull with read-only
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: ["**"]
+
+permissions: read-all
+
+concurrency:
+  group: security-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint-ansible:
+    name: Ansible Lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 #v6.2.0
+        with:
+          python-version: '3.13'
+      - name: Install ansible-lint
+        run: pip install ansible-lint==26.3.0
+      - name: Ansible Lint
+        run: ansible-lint --config-file infrastructure/ansible/.ansible-lint infrastructure/ansible/
+
+  lint-cfn:
+    name: CloudFormation Lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 #v6.2.0
+        with:
+          python-version: '3.13'
+      - name: Install cfn-lint
+        run: pip install cfn-lint==1.46.0
+      - name: CloudFormation Lint
+        run: cfn-lint infrastructure/cloudformation/*.yaml
+
+  lint-yaml:
+    name: YAML Lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 #v6.2.0
+        with:
+          python-version: '3.13'
+      - name: Install yamllint
+        run: pip install yamllint==1.38.0
+      # Config: .yamllint at repo root (max-line 160, strict truthy)
+      - name: YAML Lint
+        run: yamllint .github/ containers/ infrastructure/ operations/ platform/ security/
+
+  lint-docker:
+    name: Dockerfile Lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      # Binary SHA verified against lint-container Dockerfile (MITRE T1195.002)
+      - name: Install hadolint v2.14.0
+        run: |
+          curl -sSL https://github.com/hadolint/hadolint/releases/download/v2.14.0/hadolint-Linux-x86_64 \
+              -o /usr/local/bin/hadolint
+          echo "6bf226944684f56c84dd014e8b979d27425c0148f61b3bd99bcc6f39e9dc5a47  /usr/local/bin/hadolint" | sha256sum -c -
+          chmod +x /usr/local/bin/hadolint
+      - name: Dockerfile Lint
+        run: find containers/images -name 'Dockerfile' -print0 | xargs -0 hadolint
+
+  validate-compose:
+    name: Docker Compose Validation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Prepare CI-only placeholders
+        run: |
+          cp containers/compose/wazuh-single-node/.env.example containers/compose/wazuh-single-node/.env
+          cp containers/compose/authelia/secrets/session_secret.example containers/compose/authelia/secrets/session_secret
+      - name: Validate Compose applications
+        env:
+          INDEXER_PASSWORD: ci-validation-only
+          API_PASSWORD: ci-validation-only
+          DASHBOARD_PASSWORD: ci-validation-only
+          UID: "1000"
+          GID: "1000"
+          USER: runner
+        run: |
+          find containers/compose -type f \( -name 'compose.yml' -o -name 'docker-compose.yml' \) -print0 |
+            while IFS= read -r -d '' file; do
+              echo "Validating ${file}"
+              docker compose -f "${file}" config --quiet
+            done
+
+  lint-opa:
+    name: OPA Policy Lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      # Binary SHA verified against lint-container Dockerfile (MITRE T1195.002)
+      - name: Install OPA v1.14.0
+        run: |
+          curl -sSL https://github.com/open-policy-agent/opa/releases/download/v1.14.0/opa_linux_amd64_static \
+              -o /usr/local/bin/opa
+          echo "15f38338fda46ce4feb9fedfbbc5aab80786ed925b340ba9b8065ba3dbdd0ce5  /usr/local/bin/opa" | sha256sum -c -
+          chmod +x /usr/local/bin/opa
+      - name: OPA Check
+        run: opa check security/policy-as-code/opa/
+
+  scan-iac:
+    name: IaC Security Scan (Checkov)
+    runs-on: ubuntu-latest
+    needs: [lint-ansible, lint-cfn, lint-yaml, lint-docker, validate-compose, lint-opa]
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 #v6.2.0
+        with:
+          python-version: '3.13'
+      - name: Install checkov
+        run: pip install checkov==3.2.508
+      - name: Checkov IaC Scan
+        run: checkov -d . --quiet --compact
+
+  scan-secrets:
+    name: Secret Scan (Gitleaks)
+    runs-on: ubuntu-latest
+    needs: [lint-ansible, lint-cfn, lint-yaml, lint-docker, validate-compose, lint-opa]
+    steps:
+      # fetch-depth: 0 — gitleaks inspects full git history, not just HEAD
+      - name: Checkout Code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+      # Binary SHA verified against lint-container Dockerfile (MITRE T1195.002)
+      - name: Install gitleaks v8.30.0
+        run: |
+          curl -sSL https://github.com/gitleaks/gitleaks/releases/download/v8.30.0/gitleaks_8.30.0_linux_x64.tar.gz \
+              -o /tmp/gitleaks.tar.gz
+          echo "79a3ab579b53f71efd634f3aaf7e04a0fa0cf206b7ed434638d1547a2470a66e  /tmp/gitleaks.tar.gz" | sha256sum -c -
+          tar -xzf /tmp/gitleaks.tar.gz -C /usr/local/bin gitleaks
+          chmod +x /usr/local/bin/gitleaks
+      # --redact strips secret values from logs (no credential exposure in CI output)
+      - name: Gitleaks Secret Scan
+        run: gitleaks detect --source . --config .gitleaks.toml --redact
+
+  scan-vulnerabilities:
+    name: Vulnerability Scan (Trivy)
+    runs-on: ubuntu-latest
+    needs: [lint-ansible, lint-cfn, lint-yaml, lint-docker, validate-compose, lint-opa]
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      # Binary SHA verified against toolbox Dockerfile (MITRE T1195.002)
+      - name: Install trivy v0.69.3
+        run: |
+          curl -sSL https://github.com/aquasecurity/trivy/releases/download/v0.69.3/trivy_0.69.3_Linux-64bit.tar.gz \
+              -o /tmp/trivy.tar.gz
+          echo "1816b632dfe529869c740c0913e36bd1629cb7688bd5634f4a858c1d57c88b75  /tmp/trivy.tar.gz" | sha256sum -c -
+          tar -xzf /tmp/trivy.tar.gz -C /usr/local/bin trivy
+          chmod +x /usr/local/bin/trivy
+      # --ignore-unfixed suppresses noise from CVEs with no available fix
+      - name: Trivy Filesystem Scan
+        run: trivy fs . --exit-code 1 --severity HIGH,CRITICAL --ignore-unfixed

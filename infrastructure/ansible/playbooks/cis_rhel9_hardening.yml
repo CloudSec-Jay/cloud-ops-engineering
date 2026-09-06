@@ -1,0 +1,102 @@
+---
+# CIS RHEL 9 Level 1 Hardening Playbook
+# Uses: ansible-lockdown/RHEL9-CIS (install via requirements.yml)
+#
+# Usage:
+#   ansible-galaxy role install -r requirements.yml
+#   ansible-playbook -i inventory/inventory.ini playbooks/cis-rhel9-hardening.yml
+#   ansible-playbook -i inventory/inventory.ini playbooks/cis-rhel9-hardening.yml --check  # dry-run
+#
+# MITRE: T1562.001 (Impair Defenses), T1548 (Abuse Elevation Control)
+# NIST:  CM-6 (Configuration Settings), CM-7 (Least Functionality)
+# CIS:   Controls v8.1 IG1-IG3
+# OWASP: A02:2025 (Security Misconfiguration)
+
+- name: CIS RHEL 9 Level 1 Hardening
+  hosts: rhel_servers
+  become: true
+  gather_facts: true
+
+  vars:
+    # ── ansible-lockdown/RHEL9-CIS variable overrides ───────────────────────
+    # Full variable list: https://github.com/ansible-lockdown/RHEL9-CIS/blob/devel/defaults/main.yml
+
+    # Run Level 1 only (set rhel9cis_level2 to true for stricter controls)
+    rhel9cis_level1: true
+    rhel9cis_level2: false
+
+    # Opt into specific section groups — all enabled for Golden Image pipeline
+    rhel9cis_section1: true   # Initial Setup
+    rhel9cis_section2: true   # Services
+    rhel9cis_section3: true   # Network
+    rhel9cis_section4: true   # Logging and Auditing
+    rhel9cis_section5: true   # Access, Authentication, Authorization
+    rhel9cis_section6: true   # System Maintenance
+
+    # SSH — match our SCA policy thresholds
+    rhel9cis_sshd_config_maxauthtries: 4
+    rhel9cis_sshd_config_logingracetime: 60
+    rhel9cis_sshd_config_clientaliveinterval: 300
+    rhel9cis_sshd_config_clientalivecountmax: 3
+    rhel9cis_sshd_config_maxstartups: "10:30:60"
+    rhel9cis_sshd_config_maxsessions: 10
+    rhel9cis_sshd_config_permitemptypasswords: "no"
+    rhel9cis_sshd_config_permituserenvironment: "no"
+    rhel9cis_sshd_config_permitrootlogin: "no"
+    rhel9cis_sshd_config_allowtcpforwarding: "no"
+    rhel9cis_sshd_config_banner: /etc/issue.net
+    rhel9cis_sshd_config_ciphers: "aes256-ctr,aes192-ctr,aes128-ctr"
+    rhel9cis_sshd_config_macs: "hmac-sha2-512-etm@openssh.com,hmac-sha2-256-etm@openssh.com,hmac-sha2-512,hmac-sha2-256"
+
+    # Password policy — match our SCA policy thresholds
+    rhel9cis_pass_max_days: 365
+    rhel9cis_pass_min_days: 7
+    rhel9cis_pass_warn_age: 7
+    rhel9cis_pwquality_minlen: 14
+    rhel9cis_pwquality_dcredit: -1
+    rhel9cis_pwquality_ucredit: -1
+    rhel9cis_pwquality_ocredit: -1
+    rhel9cis_pwquality_lcredit: -1
+
+    # Faillock — match our SCA policy thresholds
+    rhel9cis_faillock_deny: 5
+    rhel9cis_faillock_unlock_time: 900
+
+    # Audit — immutable rules off in dev, enable in prod
+    rhel9cis_audit_rules_immutable: false
+
+    # AIDE — enable for Golden Image pipeline
+    rhel9cis_config_aide: true
+
+    # Warning banner
+    rhel9cis_warning_banner: "Authorized uses only. All activity may be monitored and reported."
+
+    # Services to leave installed if needed in your environment
+    # Override to false to skip removal of a specific service
+    # rhel9cis_avahi_server: false   # uncomment to keep Avahi
+
+  roles:
+    - ansible-lockdown.RHEL9-CIS
+
+  post_tasks:
+    - name: Deploy custom CIS audit rules (lab additions)
+      ansible.builtin.template:
+        src: "audit.rules.j2"
+        dest: /etc/audit/rules.d/99-cis-custom.rules
+        owner: root
+        group: root
+        mode: "0600"
+      notify: augenrules load
+
+    - name: Verify Wazuh agent is installed and running post-hardening
+      ansible.builtin.service:
+        name: wazuh-agent
+        state: started
+        enabled: true
+      failed_when: false  # Agent may not be enrolled yet on fresh build
+
+  handlers:
+    - name: Augenrules load
+      ansible.builtin.command:
+        cmd: augenrules --load
+      changed_when: false
