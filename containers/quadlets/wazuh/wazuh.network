@@ -1,0 +1,8 @@
+[Unit]
+Description=Wazuh single-node internal network
+
+[Network]
+Subnet=172.20.0.0/24
+Gateway=172.20.0.1
+Label=project=wazuh-siem
+Label=managed-by=quadlet

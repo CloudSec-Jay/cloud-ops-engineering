@@ -1,0 +1,20 @@
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Sid": "DenyPublicS3",
+            "Effect": "Deny",
+            "Action": [
+                "s3:PutAccountPublicAccessBlock",
+                "s3:PutBucketPublicAccessBlock"],
+            "Resource": "*",
+            "Condition": {
+            "StringNotLike": {
+                "aws:PrincipalArn": "arn:aws:iam::*:role/SecurityAdmin"
+
+                }
+            }
+
+        }
+    ]
+}

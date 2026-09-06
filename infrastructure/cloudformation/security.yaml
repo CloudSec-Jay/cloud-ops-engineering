@@ -1,0 +1,129 @@
+---
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >
+  Security Layer: ALB, Web, and Database security groups.
+  Depends on the network stack. Deploy network.yaml first.
+
+Parameters:
+  EnvironmentName:
+    Type: String
+    Default: dev
+    Description: Must match EnvironmentName used in network.yaml
+
+  DbPort:
+    Type: Number
+    Default: 3306
+    Description: "Database listener port (3306=MySQL, 5432=PostgreSQL)"
+
+Resources:
+
+  # --- Tier 1: ALB Security Group ---
+  # Created with no egress rule — added separately below to break circular dependency.
+  ALBSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: "ALB: HTTPS inbound from internet only"
+      VpcId: !ImportValue
+        Fn::Sub: "${EnvironmentName}-VPCID"
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+          Description: "HTTPS from internet"
+      SecurityGroupEgress: []
+      Tags:
+        - Key: Name
+          Value: !Sub "${EnvironmentName}-alb-sg"
+
+  # --- Tier 2: Web Security Group ---
+  # Created with no ingress rule — added separately below to break circular dependency.
+  WebSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: "Web: HTTPS from ALB only; DB port egress to DB tier only"
+      VpcId: !ImportValue
+        Fn::Sub: "${EnvironmentName}-VPCID"
+      SecurityGroupEgress: []
+      Tags:
+        - Key: Name
+          Value: !Sub "${EnvironmentName}-web-sg"
+
+  # --- Tier 3: Database Security Group ---
+  # Ingress from Web SG only. Zero egress — databases never initiate outbound.
+  # Empty list removes the implicit allow-all-outbound AWS default.
+  DBSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: "DB: DB port from web tier only; zero egress"
+      VpcId: !ImportValue
+        Fn::Sub: "${EnvironmentName}-VPCID"
+      SecurityGroupEgress: []
+      Tags:
+        - Key: Name
+          Value: !Sub "${EnvironmentName}-db-sg"
+
+  # --- Cross-SG Rules (added after all SGs exist to avoid circular dependency) ---
+
+  # ALB → Web: HTTPS egress
+  ALBEgressToWeb:
+    Type: AWS::EC2::SecurityGroupEgress
+    Properties:
+      GroupId: !Ref ALBSecurityGroup
+      IpProtocol: tcp
+      FromPort: 443
+      ToPort: 443
+      DestinationSecurityGroupId: !Ref WebSecurityGroup
+      Description: "HTTPS to web tier only"
+
+  # Web ← ALB: HTTPS ingress
+  WebIngressFromALB:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !Ref WebSecurityGroup
+      IpProtocol: tcp
+      FromPort: 443
+      ToPort: 443
+      SourceSecurityGroupId: !Ref ALBSecurityGroup
+      Description: "HTTPS from ALB SG only"
+
+  # Web → DB: DB port egress
+  WebEgressToDB:
+    Type: AWS::EC2::SecurityGroupEgress
+    Properties:
+      GroupId: !Ref WebSecurityGroup
+      IpProtocol: tcp
+      FromPort: !Ref DbPort
+      ToPort: !Ref DbPort
+      DestinationSecurityGroupId: !Ref DBSecurityGroup
+      Description: "DB port to database tier only"
+
+  # DB ← Web: DB port ingress
+  DBIngressFromWeb:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !Ref DBSecurityGroup
+      IpProtocol: tcp
+      FromPort: !Ref DbPort
+      ToPort: !Ref DbPort
+      SourceSecurityGroupId: !Ref WebSecurityGroup
+      Description: "DB port from web SG only"
+
+Outputs:
+  ALBSecurityGroupId:
+    Description: "ALB Security Group ID"
+    Value: !Ref ALBSecurityGroup
+    Export:
+      Name: !Sub "${EnvironmentName}-alb-sg-id"
+
+  WebSecurityGroupId:
+    Description: "Web Tier Security Group ID"
+    Value: !Ref WebSecurityGroup
+    Export:
+      Name: !Sub "${EnvironmentName}-web-sg-id"
+
+  DBSecurityGroupId:
+    Description: "Database Tier Security Group ID"
+    Value: !Ref DBSecurityGroup
+    Export:
+      Name: !Sub "${EnvironmentName}-db-sg-id"

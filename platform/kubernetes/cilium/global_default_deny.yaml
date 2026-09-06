@@ -1,0 +1,11 @@
+# this rule will deny all traffic by default, you can then create rules to allow specific traffic as needed
+apiVersion: "cilium.io/v2"
+kind: CiliumNetworkPolicy
+metadata:
+  name: "default-deny"
+spec:
+  endpointSelector: {}
+  ingress:
+    - {} # no explicit allow, denies all ingress traffic
+  egress:
+    - {} # no explicit allow, denies all egress traffic

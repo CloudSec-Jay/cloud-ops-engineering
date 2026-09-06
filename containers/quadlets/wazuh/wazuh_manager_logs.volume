@@ -1,0 +1,6 @@
+[Unit]
+Description=Wazuh Manager /var/ossec/logs — alert logs, archives
+
+[Volume]
+Label=project=wazuh-siem
+Label=component=manager

@@ -1,0 +1,6 @@
+[Unit]
+Description=Wazuh Indexer (OpenSearch) persistent data
+
+[Volume]
+Label=project=wazuh-siem
+Label=component=indexer

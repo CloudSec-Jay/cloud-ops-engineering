@@ -1,0 +1,101 @@
+# Secrets and local environment
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*.keystore
+*.vault-password
+
+# Terraform and Terragrunt runtime files
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+*.tfvars
+*.tfvars.json
+!*.tfvars.example
+.terragrunt-cache/
+
+# Provider selections should be reproducible
+!.terraform.lock.hcl
+
+# CloudFormation, CDK, and Packer output
+packaged-template.yaml
+packaged-template.json
+cdk.out/
+packer_cache/
+*.box
+manifest.json
+output-*/
+
+# Ansible runtime files and local inventories
+.ansible/
+*.retry
+inventory/*.ini
+!inventory/*.example.ini
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+dist/
+build/
+
+# Scan and lint output
+results/
+reports/
+*.sarif
+*.sarif.json
+checkov-report.*
+tfsec-report.*
+trivy-report.*
+
+# Local cloud and Kubernetes credentials
+.aws/
+.azure/
+.gcloud/
+.kube/
+kubeconfig
+*.token
+
+# Local container secrets and overrides
+**/secrets/*
+!**/secrets/*.example
+docker-compose.override.yml
+.docker/
+
+# Editor settings: retain shared extension recommendations
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.swp
+*.swo
+*~
+
+# Dependencies, caches, logs, and operating-system files
+node_modules/
+.cache/
+*.log
+*.tmp
+*.temp
+*.bak
+.DS_Store
+Thumbs.db
+Desktop.ini

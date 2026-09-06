@@ -1,0 +1,118 @@
+---
+# CIS Hardening — Fedora Workstation
+# Target: localhost (workstation)
+# Role: ansible-lockdown.RHEL9-CIS
+#
+# Run:
+#   ansible-playbook -i localhost, -c local fedora-cis-hardening.yml --check  # dry run
+#   ansible-playbook -i localhost, -c local fedora-cis-hardening.yml           # apply
+#
+# Skipped sections (workstation exceptions):
+#   - Separate partitions (/var, /var/tmp, /var/log, /var/log/audit) — requires reinstall
+#   - GDM removal — desktop requires display manager
+#   - Avahi/CUPS — desktop services
+#   - systemd-journal-remote — no remote journal host; Wazuh covers log forwarding
+#   - rsyslog remote host — Wazuh manager is the log host
+
+- name: CIS Level 1 + 2 hardening — Fedora workstation
+  hosts: localhost
+  connection: local
+  become: true
+
+  vars:
+    # OS check — role targets RHEL9; Fedora is compatible
+    os_check: false
+
+    # Do not reboot automatically
+    skip_reboot: true
+    change_requires_reboot: false
+
+    # Disruption — false on workstation; avoids high-impact changes
+    rhel9cis_disruption_high: false
+
+    # Desktop — auto-detect GNOME, keep it
+    rhel9cis_gui: true
+
+    # Services — keep desktop services
+    rhel9cis_avahi_server: true        # remove Avahi — CUPS removed, dependency chain cleared
+    rhel9cis_print_server: true        # remove CUPS — no printer needed
+    rhel9cis_xwindow_server: false     # do not remove X11
+
+    # SELinux — enforcing, not disabled
+    rhel9cis_selinux_disable: false
+    rhel9cis_selinux_state: enforcing
+
+    # Boot type — UEFI (Fedora default on modern hardware)
+    rhel9cis_legacy_boot: false
+
+    # dnsmasq — required by libvirt for KVM/QEMU virtual network DHCP
+    rhel9cis_rule_2_1_5: false
+
+    # bluetooth — gnome-shell depends on gnome-bluetooth, cannot remove without breaking desktop
+    rhel9cis_rule_3_1_3: false
+
+    # 5.1.10 DisableForwarding — role has Python 3.13 regex bug (inline flag not at start)
+    rhel9cis_rule_5_1_10: false
+
+    # squashfs — required for Distrobox/Flatpak container images
+    rhel9cis_rule_1_1_1_6: false
+
+    # Bootloader password — skip on workstation (physical access assumed trusted)
+    rhel9cis_set_boot_pass: false
+
+    # Root password — root account kept locked, sudo provides audited escalation
+    rhel9cis_rule_5_4_2_4: false
+
+    # Partitioning — skip separate partition checks (workstation install)
+    rhel9cis_vartmp_partition: false
+    rhel9cis_varlog_partition: false
+    rhel9cis_varlogaudit_partition: false
+    rhel9cis_var_partition: false
+
+    # Remote logging — Wazuh covers this; skip rsyslog remote and journal-remote
+    rhel9cis_remote_log_server: false
+    rhel9cis_syslog_service: rsyslog
+
+    # SSH — set AllowUsers to your user
+    rhel9cis_sshd_config_allowusers: "jayadmin"
+
+    # Password policy
+    rhel9cis_pass_max_days: 365
+    rhel9cis_pass_min_days: 7
+    rhel9cis_pass_warn_age: 7
+    rhel9cis_pass_lock_time: 30
+
+    # Authselect — custom profile name (must not be default 'cis_example_profile')
+    rhel9cis_authselect_custom_profile_name: cis_fedora_workstation
+
+    # Sudo
+    rhel9cis_sudo_log: /var/log/sudo.log
+
+    # Section 7 — workstation safety overrides
+    rhel9cis_ownership_adjust: false       # don't auto-reassign unowned files
+    rhel9cis_suid_sgid_adjust: false       # don't remove SUID bits — Distrobox/KVM need them
+    rhel9cis_no_world_write_adjust: false  # don't remove world-write — Flatpak/Distrobox temp dirs
+    rhel9cis_rule_7_2_8: false            # home dir ACL lockdown breaks GNOME desktop session
+    rhel9cis_rule_7_2_9: false            # dot file permissions break .bashrc, .Xauthority
+
+    # AIDE — skipped, Wazuh FIM provides realtime equivalent coverage
+    rhel9cis_aide: false
+    rhel9cis_rule_6_1_3: false
+
+    # autrace not installed
+    rhel9cis_rule_6_3_4_8: false
+    rhel9cis_rule_6_3_4_9: false
+    rhel9cis_rule_6_3_4_10: false
+
+    # audit log file permissions — role fails to discover log path, apply manually
+    rhel9cis_rule_6_3_4_2: false
+    rhel9cis_rule_6_3_4_3: false
+    rhel9cis_rule_6_3_4_4: false
+
+    # journal-remote — skipped, Wazuh manager is the remote log host
+    rhel9cis_rule_6_2_2_1_2: false
+    rhel9cis_rule_6_2_2_1_3: false
+    rhel9cis_rule_6_2_2_1_4: false
+
+  roles:
+    - role: ansible-lockdown.RHEL9-CIS

@@ -1,0 +1,6 @@
+[Unit]
+Description=Wazuh Manager /var/ossec/etc — rules, decoders, ossec.conf
+
+[Volume]
+Label=project=wazuh-siem
+Label=component=manager

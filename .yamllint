@@ -1,0 +1,20 @@
+extends: default
+
+# Exclude downloaded or vendor configuration not under our style control
+ignore: |
+  infrastructure/ansible/.ansible/roles/
+  containers/compose/
+  containers/quadlets/
+  operations/monitoring/wazuh/sca/
+  platform/kubernetes/manifests/
+
+rules:
+  # --- marker is a style preference, not a security requirement
+  document-start: disable
+  line-length:
+    max: 160        # Terraform and Ansible lines run long
+  truthy:
+    allowed-values: ['true', 'false', 'yes', 'no']
+  comments:
+    min-spaces-from-content: 1
+  comments-indentation: disable

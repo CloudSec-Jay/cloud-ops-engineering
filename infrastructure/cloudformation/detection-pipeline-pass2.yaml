@@ -1,0 +1,33 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Detection pipeline pass 2 — GuardDuty publishing destination
+
+# Deploy AFTER detection-pipeline stack is fully CREATE_COMPLETE.
+# Imports base resource values from pass 1 via stack exports.
+
+Parameters:
+  GuardDutyDetectorId:
+    Type: String
+    Description: GuardDuty detector ID from pass 1 stack output
+
+  DetectionLogsBucketArn:
+    Type: String
+    Description: S3 bucket ARN from pass 1 stack output
+
+  DetectionKMSKeyArn:
+    Type: String
+    Description: KMS key ARN from pass 1 stack output
+
+Resources:
+  GuardDutyPublishingDestination:
+    Type: AWS::GuardDuty::PublishingDestination
+    Properties:
+      DetectorId: !Ref GuardDutyDetectorId
+      DestinationType: S3
+      DestinationProperties:
+        DestinationArn: !Ref DetectionLogsBucketArn
+        KmsKeyArn: !Ref DetectionKMSKeyArn
+
+Outputs:
+  PublishingDestinationId:
+    Description: GuardDuty publishing destination ID
+    Value: !Ref GuardDutyPublishingDestination

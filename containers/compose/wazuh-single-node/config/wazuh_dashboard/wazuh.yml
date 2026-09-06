@@ -1,0 +1,8 @@
+# Modified by Jason Tribble in 2026 for this repository's manager endpoint.
+hosts:
+  - 1513629884013:
+      url: "https://wazuh.manager"
+      port: 55000
+      username: wazuh-wui
+      password: "REPLACED_BY_API_PASSWORD_AT_STARTUP"
+      run_as: true

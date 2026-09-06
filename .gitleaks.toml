@@ -1,0 +1,9 @@
+# .gitleaks.toml
+# Gitleaks configuration to manage false positives and documentation exclusions
+
+[allowlist]
+description = "Whitelist documentation and terraform providers"
+paths = [
+    '''README\.md''',
+    '''.terraform/'''
+]

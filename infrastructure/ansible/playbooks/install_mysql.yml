@@ -1,0 +1,42 @@
+---
+- name: Deploy MySQL via Docker
+  hosts: localhost
+  connection: local
+  become: true
+  vars:
+    ansible_python_interpreter: /usr/bin/python3
+  vars_files:
+    - vars/secrets.yml
+
+  tasks:
+    - name: Pull MySQL Docker Image
+      community.docker.docker_image:
+        name: mysql:8.0
+        source: pull
+
+    - name: Create Docker network for MySQL
+      community.docker.docker_network:
+        name: mysql-network
+        driver: bridge
+
+    - name: Create MySQL volumes
+      community.docker.docker_volume:
+        name: mysql_data
+        state: present
+
+    - name: Create MySQL Container
+      community.docker.docker_container:
+        name: mysql-db
+        image: mysql:8.0
+        state: started
+        pull: true
+        restart_policy: always
+        published_ports:
+          - "3306:3306"
+        env:
+          MYSQL_ROOT_PASSWORD: "{{ mysql_root_password }}"
+          MYSQL_DATABASE: "{{ mysql_database }}"
+        networks:
+          - name: mysql-network
+        volumes:
+          - mysql_data:/var/lib/mysql
