@@ -124,7 +124,6 @@ Resources:
   # ── Lambda ────────────────────────────────────
   ContactFunction:
     Type: AWS::Lambda::Function
-    DependsOn: ContactLambdaLogGroup
     Properties:
       FunctionName: cloudsec-contact-handler
       Description: Validates and stores contact form submissions — T1190 input validation
