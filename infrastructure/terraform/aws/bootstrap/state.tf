@@ -46,8 +46,21 @@ data "aws_iam_policy_document" "terraform_state_kms" {
       type        = "AWS"
       identifiers = ["arn:aws:iam::${data.aws_caller_identity.current.account_id}:root"]
     }
-    actions   = ["kms:*"]
-    resources = ["*"]
+    actions = [
+      "kms:Create*",
+      "kms:Describe*",
+      "kms:Enable*",
+      "kms:List*",
+      "kms:Put*",
+      "kms:Update*",
+      "kms:Revoke*",
+      "kms:Disable*",
+      "kms:Get*",
+      "kms:Delete*",
+      "kms:ScheduleKeyDeletion",
+      "kms:CancelKeyDeletion"
+    ]
+    resources = [aws_kms_key.terraform_state.arn]
   }
 
   statement {
@@ -61,8 +74,7 @@ data "aws_iam_policy_document" "terraform_state_kms" {
       "kms:Decrypt",
       "kms:GenerateDataKey"
     ]
-    resources = ["*"]
+    resources = [aws_kms_key.terraform_state.arn]
   }
 }
-
 data "aws_caller_identity" "current" {}
