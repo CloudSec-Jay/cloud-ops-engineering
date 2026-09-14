@@ -41,7 +41,7 @@ RUN curl -sSL https://github.com/terraform-linters/tflint/releases/download/v0.6
     chmod +x /usr/local/bin/tflint
 
 # Stage 2 — clean runtime, no curl
-FROM python:3.13-alpine3.23@sha256:bb1f2fdb1065c85468775c9d680dcd344f6442a2d1181ef7916b60a623f11d40
+FROM python:3.14-alpine3.23@sha256:8caa2adfeb414dfe68d8b257f7aea9e205a400521c2b13b2d2e5e731fb8e70e5
 
 # Copy only the verified binaries from builder — curl does not follow
 COPY --from=builder /usr/local/bin/hadolint /usr/local/bin/
