@@ -2,6 +2,8 @@
 
 A practical portfolio of cloud infrastructure, Linux automation, container operations, Kubernetes networking, observability, incident response, and preventive guardrails.
 
+The [portfolio website](docs/site/index.html) presents the projects, validation boundaries, and roadmap. See [site maintenance and publishing](docs/site-maintenance.md).
+
 ## Portfolio map
 
 | Area | What is demonstrated | Entry point |

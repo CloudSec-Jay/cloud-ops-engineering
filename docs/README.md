@@ -2,6 +2,7 @@
 
 Documentation in this area explains design intent and provides reusable evidence structure.
 
+- [`site-maintenance.md`](site-maintenance.md): portfolio website preview, publishing, and recovery
 - [`security/infrastructure-threat-model.md`](security/infrastructure-threat-model.md): repository infrastructure threat model
 - [`security/frameworks/`](security/frameworks/README.md): NIST, MITRE ATT&CK, OWASP, and STRIDE evidence maps
 - [`templates/evidence_template.md`](templates/evidence_template.md): operational validation and evidence template
