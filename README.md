@@ -17,9 +17,10 @@ Repository-specific working rules for Codex are in [`AGENTS.md`](AGENTS.md).
 
 ## Current maturity
 
-- **Working examples:** Ansible playbooks, CloudFormation templates, AWS policy documents, OPA rules, Wazuh configurations, Compose files, and container build contexts.
-- **Requires environment testing:** Kubernetes/Cilium setup, Wazuh deployments, active response, host hardening, and infrastructure deployment.
-- **Scaffold only:** Terraform directories contain conventions and ownership boundaries but no active `.tf` resources.
+- **Working examples:** Ansible playbooks, CloudFormation templates, AWS policy documents, OPA rules, Wazuh configurations, Compose files, SQL migrations, and container build contexts.
+- **In progress:** The AWS Terraform bootstrap contains active provider, variable, S3, and KMS configuration but has no recorded deployment evidence. EC2 capacity analytics contains a local MySQL/Grafana stack and two schema migrations; collection, dashboards, and AWS integration remain incomplete.
+- **Requires environment testing:** Terraform plans, Kubernetes/Cilium setup, Wazuh deployments, active response, host hardening, and infrastructure deployment.
+- **Scaffold only:** Terraform development, production, reusable-module, and GitHub roots remain documentation-only.
 
 Nothing in this repository should be treated as production-approved solely because it passes syntax or static analysis. Review plans, credentials, network exposure, rollback, and recovery in the target environment.
 
@@ -28,7 +29,7 @@ Nothing in this repository should be treated as production-approved solely becau
 GitHub Actions currently provides:
 
 - Ansible, CloudFormation, YAML, Dockerfile, and OPA validation
-- Compose configuration checks
+- Compose configuration checks for stacks under `containers/compose/`; the capacity-analytics stack is not yet included
 - Checkov infrastructure scanning
 - Gitleaks secret scanning
 - Trivy vulnerability scanning
