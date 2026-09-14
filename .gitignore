@@ -80,6 +80,7 @@ kubeconfig
 !**/secrets/*.example
 docker-compose.override.yml
 .docker/
+secrets*
 
 # Editor settings: retain shared extension recommendations
 .vscode/*

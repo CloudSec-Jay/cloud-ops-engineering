@@ -1,0 +1,38 @@
+services:
+  db:
+    image: mysql:8.4.11
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD_FILE: /run/secrets/mysql_root_password
+    secrets:
+      - mysql_root_password
+    cpus: "1.00"
+    mem_limit: 1536m
+    mem_reservation: 512m
+    pids_limit: 200
+    ports:
+      - "127.0.0.1:3306:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+
+  grafana:
+    image: grafana/grafana-enterprise
+    restart: unless-stopped
+    cpus: "1.00"
+    mem_limit: 1024m
+    ports:
+      - "127.0.0.1:3000:3000"
+    volumes:
+      - grafana-data:/var/lib/grafana
+    depends_on:
+      - db
+
+volumes:
+  mysql-data:
+    external: true
+    name: mysql_data
+  grafana-data:
+
+secrets:
+  mysql_root_password:
+    file: ./secrets/mysql_root_password

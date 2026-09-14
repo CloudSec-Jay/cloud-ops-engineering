@@ -6,7 +6,7 @@ Infrastructure provisioning and host configuration are organized by tool and lif
 
 - [`ansible/`](ansible/README.md): Linux hardening, package/service configuration, and system maintenance
 - [`cloudformation/`](cloudformation/README.md): AWS network, security-group, serverless, and detection-pipeline examples
-- [`terraform/`](terraform/README.md): an empty, documented structure for future AWS and GitHub resources
+- [`terraform/`](terraform/README.md): an active AWS remote-state bootstrap draft plus documented development, production, module, and GitHub boundaries
 
 Container workloads live under [`containers/`](../containers/README.md); Kubernetes platform configuration lives under [`platform/`](../platform/README.md).
 

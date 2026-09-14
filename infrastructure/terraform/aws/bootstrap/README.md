@@ -26,12 +26,35 @@ The state bucket cannot store the state used to create itself until the bucket e
 
 During the first phase, the local state is sensitive. Keep it on an encrypted workstation, never commit it, restrict access to it, and remove it only after remote migration and version recovery are verified.
 
+<<<<<<< HEAD
+## Current and planned files
+=======
 ## Planned files
+>>>>>>> origin/main
 
 ```text
 bootstrap/
 |-- README.md
 |-- versions.tf
+<<<<<<< HEAD
+|-- provider.tf
+|-- variables.tf
+|-- state.tf
+|-- github_oidc.tf            planned
+|-- outputs.tf                planned
+`-- terraform.tfvars.example planned
+```
+
+The repository currently contains Terraform/provider requirements, initial variables, and a draft S3/KMS state foundation. It does not contain recorded `terraform validate`, plan, apply, backend-migration, or recovery evidence, so deployment is not claimed.
+
+Remaining work is divided into small reviewable blocks:
+
+1. Complete input validation and required tags.
+2. Validate S3 state storage and KMS policy behavior.
+3. Add narrowly scoped outputs.
+4. Add the GitHub OIDC provider and deployment role.
+5. Add backend migration instructions and test recovery.
+=======
 |-- providers.tf
 |-- variables.tf
 |-- state.tf
@@ -48,6 +71,7 @@ We will add these in small reviewable blocks:
 4. narrowly scoped outputs
 5. GitHub OIDC provider and deployment role
 6. backend migration instructions
+>>>>>>> origin/main
 
 ## Lifecycle boundary
 
