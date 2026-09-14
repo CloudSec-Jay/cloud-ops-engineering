@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Operations Roadmap · Jason Tribble</title>
+  <meta name="description" content="Jason Tribble's cloud operations engineering portfolio: AWS, Linux automation, containers, observability, and recovery. Explore source artifacts and their current maturity.">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'none'; style-src 'self' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self'; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none';">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&amp;family=JetBrains+Mono:wght@400;500&amp;family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+  <header class="site-header">
+    <a class="brand" href="index.html"><span class="dot" aria-hidden="true"></span>Jason Tribble</a>
+    <nav aria-label="Main navigation"><a href="index.html">Overview</a><a href="library.html">Library</a><a href="roadmap.html" aria-current="page">Roadmap</a><a href="https://medium.com/@cloudsec-jay">Blog ↗</a></nav>
+    <a class="header-link" href="contact.html">Contact →</a>
+  </header>
+  <main id="main">
+<section class="page-intro"><p class="eyebrow">Direction / No artificial deadlines</p><h1>Build. Validate. Improve.</h1><p>The next steps follow operational dependencies: a safe foundation, useful visibility, demonstrated recovery, then repeatable promotion.</p></section><div class="roadmap"><article class="roadmap-row"><div><span class="step-number">01</span><span class="status">In progress</span></div><div><h2>Establish the AWS baseline</h2><p>Finish the state bootstrap, then implement development networking, workload identity, logging, patching, backup, and cost controls.</p><p class="exit">Exit evidence: reviewed plan, non-production deployment, state recovery, and confirmed teardown.</p><a class="text-link" href="https://github.com/CloudSec-Jay/cloud-ops-engineering/blob/main/infrastructure/terraform/README.md">Follow the implementation ↗</a></div></article><article class="roadmap-row"><div><span class="step-number">02</span><span class="status">In progress</span></div><div><h2>Make fleet capacity visible</h2><p>Complete the inventory schema, separate database roles, synthetic collector, and dashboard provisioning before adding read-only AWS collection.</p><p class="exit">Exit evidence: synthetic collection to dashboard, constraint tests, health checks, and backup restoration.</p><a class="text-link" href="https://github.com/CloudSec-Jay/cloud-ops-engineering/blob/main/operations/capacity-analytics/README.md">Follow the implementation ↗</a></div></article><article class="roadmap-row"><div><span class="step-number">03</span><span class="status">Next</span></div><div><h2>Validate operations & recovery</h2><p>Exercise detections, tune false positives, define service indicators, and test backup and disaster-recovery procedures.</p><p class="exit">Exit evidence: positive and negative tests, actionable alerts, and measured restoration outcomes.</p><a class="text-link" href="https://github.com/CloudSec-Jay/cloud-ops-engineering/blob/main/operations/README.md">Follow the implementation ↗</a></div></article><article class="roadmap-row"><div><span class="step-number">04</span><span class="status">Later</span></div><div><h2>Promote proven patterns</h2><p>Extract reusable Terraform modules after a second environment needs them. Add promotion and approval workflows once development and recovery are demonstrated.</p><p class="exit">Exit evidence: isolated environment state, repeatable promotion, rollback, and reviewed operating evidence.</p><a class="text-link" href="https://github.com/CloudSec-Jay/cloud-ops-engineering/blob/main/infrastructure/terraform/README.md">Follow the implementation ↗</a></div></article></div>  </main>
+  <footer>
+    <div><a class="brand" href="index.html">Jason Tribble.</a><p>Cloud operations. Built with intent.</p></div>
+    <div class="footer-links"><a href="https://github.com/CloudSec-Jay/cloud-ops-engineering">Source repository ↗</a><a href="https://medium.com/@cloudsec-jay">Blog on Medium ↗</a><a href="contact.html">Contact →</a><a href="https://www.credly.com/users/jason-tribble">Credentials ↗</a></div>
+  </footer>
+</body>
+</html>
