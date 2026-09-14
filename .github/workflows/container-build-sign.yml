@@ -111,7 +111,7 @@ jobs:
 
       # SBOM generation and attestation — SLSA provenance
       - name: Generate SBOM
-        uses: anchore/sbom-action@17ae1740179002c89186b61233e0f892c3118b11 # v0.23.0
+        uses: anchore/sbom-action@3ad7283483fc7af8ff2b4ea19663c2d5ca935e26 # v0.24.2
         with:
           image: ghcr.io/${{ steps.owner.outputs.name }}/${{ matrix.name }}@${{ steps.build.outputs.digest }}
           artifact-name: sbom-${{ matrix.name }}.spdx.json
