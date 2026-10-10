@@ -5,7 +5,7 @@ Operational procedures connect telemetry and configuration changes to triage, co
 ## Components
 
 - [`capacity-analytics/`](capacity-analytics/README.md): local MySQL and Grafana stack, EC2 inventory schema, SQL tests, and planned synthetic/AWS collection
-- [`monitoring/`](monitoring/README.md): Wazuh configuration, detections, integrations, tuning, and dashboards
+- [`monitoring/`](monitoring/README.md): monitoring guidance and the migration path to the Kubernetes SecOps Platform
 - [`incident-response/`](incident-response/README.md): evidence collection, host-compromise response, Wazuh triage, and hardening recovery
 
 ## Operating expectations

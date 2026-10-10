@@ -1,6 +1,6 @@
 # Cloud Operations Engineering
 
-A practical portfolio of cloud infrastructure, Linux automation, container operations, Kubernetes networking, observability, incident response, and preventive guardrails.
+A practical portfolio of cloud infrastructure, Linux automation, container operations, observability, incident response, and preventive guardrails. The self-hosted Kubernetes security lab is maintained as a linked project.
 
 The [portfolio website](docs/site/index.html) presents the projects, validation boundaries, and roadmap. See [site maintenance and publishing](docs/site-maintenance.md).
 
@@ -10,8 +10,9 @@ The [portfolio website](docs/site/index.html) presents the projects, validation 
 |---|---|---|
 | Containers | Compose services, hardened utility images, and Podman Quadlets | [`containers/`](containers/README.md) |
 | Infrastructure | Ansible, CloudFormation, and a clean Terraform layout | [`infrastructure/`](infrastructure/README.md) |
-| Operations | Monitoring, Wazuh detection engineering, incident response, and recovery procedures | [`operations/`](operations/README.md) |
-| Platform | Kubernetes networking, Cilium, RBAC, and workload identity patterns | [`platform/`](platform/README.md) |
+| Operations | Incident response, recovery procedures, and capacity analytics | [`operations/`](operations/README.md) |
+| Kubernetes SecOps | kubeadm, Cilium, Hubble, Wazuh, and migrated detection content | [`CloudSec-Jay/k8s-secops-platform`](https://github.com/CloudSec-Jay/k8s-secops-platform) |
+| Platform | Pointers to the dedicated Kubernetes SecOps project | [`platform/`](platform/README.md) |
 | Security controls | AWS guardrails, OPA policy-as-code, checksums, SBOMs, and image signing | [`security/`](security/README.md) |
 | Architecture and evidence | Threat models, framework maps, and evidence templates | [`docs/`](docs/README.md) |
 
@@ -19,9 +20,9 @@ Repository-specific working rules for Codex are in [`AGENTS.md`](AGENTS.md).
 
 ## Current maturity
 
-- **Working examples:** Ansible playbooks, CloudFormation templates, AWS policy documents, OPA rules, Wazuh configurations, Compose files, SQL migrations, and container build contexts.
+- **Working examples:** Ansible playbooks, CloudFormation templates, AWS policy documents, OPA rules, Compose files, SQL migrations, and container build contexts.
 - **In progress:** The AWS Terraform bootstrap contains active provider, variable, S3, and KMS configuration but has no recorded deployment evidence. EC2 capacity analytics contains a local MySQL/Grafana stack and two schema migrations; collection, dashboards, and AWS integration remain incomplete.
-- **Requires environment testing:** Terraform plans, Kubernetes/Cilium setup, Wazuh deployments, active response, host hardening, and infrastructure deployment.
+- **Requires environment testing:** Terraform plans, host hardening, and infrastructure deployment. Kubernetes/Wazuh testing is tracked in the dedicated SecOps platform repository.
 - **Scaffold only:** Terraform development, production, reusable-module, and GitHub roots remain documentation-only.
 
 Nothing in this repository should be treated as production-approved solely because it passes syntax or static analysis. Review plans, credentials, network exposure, rollback, and recovery in the target environment.

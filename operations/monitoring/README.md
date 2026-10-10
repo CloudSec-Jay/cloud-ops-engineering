@@ -1,6 +1,6 @@
 # Monitoring and Detection
 
-This area connects AWS and Linux telemetry to Wazuh rules, triage procedures, tuning decisions, and optional response actions.
+The Wazuh rules, endpoint configuration, tuning decisions, and Kubernetes deployment now live in the [Kubernetes SecOps Platform](https://github.com/CloudSec-Jay/k8s-secops-platform). This area retains the connection to Cloud Operations incident-response procedures.
 
 ## Event path
 
@@ -16,7 +16,7 @@ AWS and Linux telemetry
 
 ## Components
 
-- [`wazuh/`](wazuh/README.md): manager and agent examples, custom rules, SCA, integrations, and operational notes
+- [`wazuh/`](wazuh/README.md): migration pointer to the dedicated platform repository
 - [`../incident-response/`](../incident-response/README.md): evidence, triage, containment, and recovery procedures
 
 ## Detection quality bar
