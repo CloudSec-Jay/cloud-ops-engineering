@@ -6,4 +6,4 @@ The kubeadm VM cluster, Cilium configuration, network boundaries, RBAC guidance,
 - [kubeadm runbook](https://github.com/CloudSec-Jay/k8s-secops-platform/blob/main/platform/kubeadm/README.md)
 - [Cilium source](https://github.com/CloudSec-Jay/k8s-secops-platform/tree/main/platform/cilium)
 
-Policy-as-code remains in [`../../security/policy-as-code/`](../../security/policy-as-code/README.md) as Project 07's canonical source.
+Policy-as-code remains in [`../../security/policy-as-code/`](../../security/policy-as-code/README.md) as Project 06's canonical source.
