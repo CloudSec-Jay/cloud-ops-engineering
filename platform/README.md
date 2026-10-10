@@ -1,7 +1,8 @@
 # Platform
 
-Kubernetes platform examples focus on network isolation, Cilium visibility, RBAC, and workload identity.
+The Kubernetes platform examples were combined with Wazuh detection engineering in the dedicated [Kubernetes SecOps Platform](https://github.com/CloudSec-Jay/k8s-secops-platform).
 
-- [`kubernetes/`](kubernetes/README.md): Minikube/Cilium setup, default-deny policies, an architecture decision record, and service-account guidance
+- [`kubernetes/`](kubernetes/README.md): migration pointer and direct links
+- [Live project site](https://cloudsec-jay.github.io/k8s-secops-platform/): architecture, controls, and validation boundary
 
-These assets are development examples. Validate API compatibility and chart versions against the target cluster before applying them.
+Policy-as-code remains in [`../security/policy-as-code/`](../security/policy-as-code/README.md) as Project 07's canonical source.

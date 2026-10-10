@@ -30,20 +30,6 @@ Copyright: Wazuh, Inc.
 
 License: GNU General Public License version 2, [`LICENSES/GPL-2.0-only.txt`](LICENSES/GPL-2.0-only.txt)
 
-## Wazuh security configuration assessment policy
-
-Covered file:
-
-- `operations/monitoring/wazuh/sca/fedora/cis_fedora_custom.yaml`
-
-Source project: [wazuh/wazuh](https://github.com/wazuh/wazuh)
-
-Copyright: Wazuh, Inc.
-
-License: GNU General Public License version 2, [`LICENSES/GPL-2.0-only.txt`](LICENSES/GPL-2.0-only.txt)
-
-This file identifies itself as based on a Center for Internet Security benchmark. CIS names and benchmark content remain subject to their applicable terms and trademarks.
-
 ## Authelia configuration template
 
 Covered file:

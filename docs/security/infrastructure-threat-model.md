@@ -86,7 +86,7 @@
 
 ---
 
-### Fedora Workstation — `operations/monitoring/wazuh/agent-configs/ossec.conf`
+### Fedora Workstation — [`k8s-secops-platform/wazuh/content/agent-configs/ossec.conf`](https://github.com/CloudSec-Jay/k8s-secops-platform/blob/main/wazuh/content/agent-configs/ossec.conf)
 
 | Threat | Description | Control | Gap |
 |---|---|---|---|

@@ -1,22 +1,9 @@
-# Kubernetes Platform
+# Kubernetes Platform Moved
 
-This directory demonstrates a small Kubernetes networking and identity baseline.
+The kubeadm VM cluster, Cilium configuration, network boundaries, RBAC guidance, and Wazuh Kubernetes deployment now live in the dedicated [Kubernetes SecOps Platform](https://github.com/CloudSec-Jay/k8s-secops-platform).
 
-## Contents
+- [Project site](https://cloudsec-jay.github.io/k8s-secops-platform/)
+- [kubeadm runbook](https://github.com/CloudSec-Jay/k8s-secops-platform/blob/main/platform/kubeadm/README.md)
+- [Cilium source](https://github.com/CloudSec-Jay/k8s-secops-platform/tree/main/platform/cilium)
 
-- [`cilium/ADR_001_Cilium_eBPF.md`](cilium/ADR_001_Cilium_eBPF.md): rationale and tradeoffs for Cilium
-- [`cilium/global_default_deny.yaml`](cilium/global_default_deny.yaml): Cilium default-deny example
-- [`manifests/deny-all-network-policy.yaml`](manifests/deny-all-network-policy.yaml): standard Kubernetes ingress/egress deny policy
-- [`helm/cilium-values.md`](helm/cilium-values.md): Cilium installation and Hubble notes
-- [`security/service-accounts.md`](security/service-accounts.md): least-privilege RBAC and workload identity pattern
-- [`scripts/minikube_setup.sh`](scripts/minikube_setup.sh): destructive local-cluster recreation script
-
-## Local validation
-
-```bash
-kubectl apply --dry-run=client -f platform/kubernetes/manifests/deny-all-network-policy.yaml
-kubectl apply --dry-run=client -f platform/kubernetes/cilium/global_default_deny.yaml
-bash -n platform/kubernetes/scripts/minikube_setup.sh
-```
-
-The Minikube script deletes the selected profile before recreating it with the `kvm2` driver. Confirm the profile name, available memory, required CLIs, and recovery expectations before running it.
+Policy-as-code remains in [`../../security/policy-as-code/`](../../security/policy-as-code/README.md) as Project 07's canonical source.
