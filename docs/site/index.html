@@ -36,27 +36,31 @@
     </section>
     <div class="skills-strip"><span class="eyebrow">Toolbox</span><p>AWS <span> / </span> Linux <span> / </span> Ansible <span> / </span> Docker <span> / </span> Kubernetes <span> / </span> OPA <span> / </span> GitHub Actions</p></div>
     <section class="about"><p class="eyebrow">The approach</p><p>From the host to the cloud: understand the failure, make the change repeatable, and leave a recovery path. <em>The repository shows both the implementation and the work still ahead.</em></p></section>
-    <section class="section" id="artifacts"><div class="section-heading"><div><p class="eyebrow">Selected work / Source available</p><h2>Operational artifacts.</h2></div><a class="text-link" href="https://github.com/CloudSec-Jay/cloud-ops-engineering">Browse source artifacts ↗</a></div><div class="project-grid"><a class="project-card" href="https://cloudsec-jay.github.io/ai-ml-security/">
-      <div class="card-top"><span class="eyebrow">01 / AI security</span><span aria-hidden="true">↗</span></div>
-      <h3>AI agent security engineering</h3><p>Prompt-injection labs, MCP controls, workload identity, model integrity, and MLOps boundaries in a dedicated security project.</p><span class="status">Live project site</span><span class="stack">Agents · LLMs · MCP · MLOps</span>
-    </a><a class="project-card" href="https://github.com/CloudSec-Jay/cloud-ops-engineering/blob/main/containers/README.md">
-      <div class="card-top"><span class="eyebrow">02 / Containers</span><span aria-hidden="true">↗</span></div>
+    <section class="project-family" id="project-sites" aria-labelledby="project-sites-title">
+      <div class="project-family-intro"><div><p class="eyebrow">Field projects / GitHub Pages</p><h2 id="project-sites-title">One practice.<br>Five distinct systems.</h2></div><p>Each case study shares this portfolio’s visual foundation, then adopts its own system-specific identity. The source and the current validation boundary remain visible.</p></div>
+      <div class="project-family-list">
+        <a class="family-card dragon" href="https://cloudsec-jay.github.io/dragonwilds-aws/"><span class="eyebrow">01 / AWS workload</span><h3>Dragonwilds<br>on AWS.</h3><p>Hardened AMIs, retained EBS world data, SSM administration, Falco, and CloudWatch operations.</p><span class="family-link">Open the case study ↗</span></a>
+        <a class="family-card secops" href="https://cloudsec-jay.github.io/k8s-secops-platform/"><span class="eyebrow">02 / Kubernetes security</span><h3>SecOps<br>platform.</h3><p>A kubeadm VM lab with Cilium, Hubble, Wazuh, persistent storage, and migrated detection content.</p><span class="family-link">Open the case study ↗</span></a>
+        <a class="family-card ai" href="https://cloudsec-jay.github.io/ai-ml-security/"><span class="eyebrow">03 / AI security</span><h3>AI agent<br>security.</h3><p>Prompt injection, MCP controls, scoped agent identity, model integrity, and MLOps boundaries.</p><span class="family-link">Open the case study ↗</span></a>
+        <a class="family-card compliance" href="https://cloudsec-jay.github.io/compliance-guardrails-integrity/"><span class="eyebrow">04 / Compliance</span><h3>Guardrails<br>&amp; integrity.</h3><p>AWS policies, OPA admission, evidence mapping, SBOMs, checksums, and release verification.</p><span class="family-link">Open the case study ↗</span></a>
+        <a class="family-card resilience" href="https://cloudsec-jay.github.io/cloud-resilience-recovery/"><span class="eyebrow">05 / Resilience</span><h3>Recovery<br>engineering.</h3><p>Scaffolded EBS restore testing, explicit RTO and RPO, scorecards, and sanitized evidence.</p><span class="family-link">Open the case study ↗</span></a>
+      </div>
+    </section>
+    <section class="section" id="artifacts"><div class="section-heading"><div><p class="eyebrow">CloudOps repository / Source available</p><h2>Operational artifacts.</h2></div><a class="text-link" href="https://github.com/CloudSec-Jay/cloud-ops-engineering">Browse CloudOps source ↗</a></div><div class="project-grid"><a class="project-card" href="https://github.com/CloudSec-Jay/cloud-ops-engineering/blob/main/containers/README.md">
+      <div class="card-top"><span class="eyebrow">01 / Containers</span><span aria-hidden="true">↗</span></div>
       <h3>Repeatable service environments</h3><p>Compose stacks, operational utility images, and Podman Quadlets. Review image versions, resource limits, ports, and persistent-volume recovery before deployment.</p><span class="status">Environment testing required</span><span class="stack">Compose · Podman · Linux</span>
-    </a><a class="project-card" href="https://cloudsec-jay.github.io/k8s-secops-platform/">
-      <div class="card-top"><span class="eyebrow">03 / SecOps platform</span><span aria-hidden="true">↗</span></div>
-      <h3>Self-hosted Kubernetes security lab</h3><p>A kubeadm VM cluster combines Cilium network boundaries and Hubble flows with a Kubernetes-native Wazuh platform, migrated detection content, and recovery gates.</p><span class="status">Live project site</span><span class="stack">kubeadm · Cilium · Wazuh</span>
+    </a><a class="project-card" href="https://github.com/CloudSec-Jay/cloud-ops-engineering/blob/main/operations/README.md">
+      <div class="card-top"><span class="eyebrow">02 / Operations</span><span aria-hidden="true">↗</span></div>
+      <h3>Detection &amp; incident response</h3><p>Operational procedures connect telemetry and configuration changes to triage, containment, recovery, and evidence.</p><span class="status">Configurations + runbooks</span><span class="stack">Wazuh · Triage · Recovery</span>
     </a><a class="project-card" href="https://github.com/CloudSec-Jay/cloud-ops-engineering/blob/main/operations/capacity-analytics/README.md">
-      <div class="card-top"><span class="eyebrow">04 / Observability</span><span aria-hidden="true">↗</span></div>
+      <div class="card-top"><span class="eyebrow">03 / Observability</span><span aria-hidden="true">↗</span></div>
       <h3>EC2 fleet capacity analytics</h3><p>A local MySQL/Grafana stack and inventory schema. Collection, dashboard provisioning, AWS integration, and recovery validation remain incomplete.</p><span class="status">In progress</span><span class="stack">MySQL · Grafana · EC2</span>
-    </a><a class="project-card" href="https://cloudsec-jay.github.io/dragonwilds-aws/">
-      <div class="card-top"><span class="eyebrow">05 / AWS workload</span><span aria-hidden="true">↗</span></div>
-      <h3>Dragonwilds on AWS</h3><p>A hardened dedicated game server built as a production-style workload with immutable AMIs, retained EBS world storage, SSM-only administration, Falco runtime detection, and CloudWatch operations.</p><span class="status">Live case study</span><span class="stack">EC2 · CloudFormation · Packer · Ansible</span>
-    </a><a class="project-card" href="https://cloudsec-jay.github.io/compliance-guardrails-integrity/">
-      <div class="card-top"><span class="eyebrow">06 / Compliance engineering</span><span aria-hidden="true">↗</span></div>
-      <h3>Guardrails, evidence &amp; integrity</h3><p>AWS policies, OPA admission controls, evidence mapping, checksums, SBOMs, and digest-bound release verification.</p><span class="status">Live project site</span><span class="stack">IAM · OPA · NIST · Sigstore</span>
-    </a><a class="project-card" href="https://cloudsec-jay.github.io/cloud-resilience-recovery/">
-      <div class="card-top"><span class="eyebrow">07 / Resilience engineering</span><span aria-hidden="true">↗</span></div>
-      <h3>Recovery objectives &amp; restore testing</h3><p>A scaffolded AWS Backup and EBS recovery lab with explicit RTO/RPO objectives, an isolated restore drill, scorecard automation, and a sanitized evidence contract.</p><span class="status">Scaffolded project site</span><span class="stack">AWS Backup · EBS · RTO/RPO · CloudFormation</span>
+    </a><a class="project-card" href="https://github.com/CloudSec-Jay/cloud-ops-engineering/blob/main/platform/README.md">
+      <div class="card-top"><span class="eyebrow">04 / Platform integration</span><span aria-hidden="true">↗</span></div>
+      <h3>SecOps platform boundary</h3><p>Migration notes and ownership pointers keep Kubernetes implementation in its dedicated repository without duplicating it here.</p><span class="status">Migration boundary documented</span><span class="stack">Kubernetes · Ownership · Migration</span>
+    </a><a class="project-card" href="https://github.com/CloudSec-Jay/cloud-ops-engineering/blob/main/security/README.md">
+      <div class="card-top"><span class="eyebrow">05 / Security integration</span><span aria-hidden="true">↗</span></div>
+      <h3>Workload guardrail sources</h3><p>Original AWS, OPA, evidence, and integrity artifacts remain available here while reusable compliance engineering is maintained in its standalone project.</p><span class="status">Source material retained</span><span class="stack">IAM · OPA · Evidence · Integrity</span>
     </a></div></section>
     <section class="career section" id="experience" aria-labelledby="experience-title">
       <div class="section-heading"><div><p class="eyebrow">Professional experience</p><h2 id="experience-title">Operating at AWS.</h2></div><a class="text-link" href="https://www.linkedin.com/in/jt92/">View LinkedIn ↗</a></div>
