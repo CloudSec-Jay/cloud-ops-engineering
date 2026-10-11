@@ -46,7 +46,7 @@ The strongest next additions for a cloud operations engineer are:
 
 1. Implement the Terraform AWS development environment and remote-state bootstrap.
 2. Add AWS Organizations, IAM Identity Center, account-vending, and centralized logging patterns.
-3. Add backup/restore and disaster-recovery runbooks with tested recovery objectives.
+3. Integrate workload-specific recovery hooks with the standalone [Cloud Resilience & Recovery](https://github.com/CloudSec-Jay/cloud-resilience-recovery) scaffold, then capture measured restoration evidence.
 4. Add service-level indicators, alert thresholds, dashboards, and capacity checks.
 5. Add patching, vulnerability remediation, and configuration-drift workflows.
 6. Add cost allocation tags, budgets, anomaly detection, and lifecycle policies.

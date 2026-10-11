@@ -60,6 +60,7 @@ nav a[aria-current] { color: var(--ink); text-decoration: underline; text-underl
 .text-link { font: 500 11px/1.8 var(--mono); text-decoration: underline; text-underline-offset: 5px; display: inline-block; }
 .project-grid { display: grid; grid-template-columns: repeat(3, 1fr); border-top: 1px solid var(--line); border-left: 1px solid var(--line); }
 .project-card { padding: 28px; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); display: flex; flex-direction: column; align-items: start; gap: 18px; transition: background .2s; }
+.project-card:last-child:nth-child(3n + 1) { grid-column: 1 / -1; }
 .project-card:hover { background: var(--soft); text-decoration: none; }
 .card-top { display: flex; justify-content: space-between; width: 100%; gap: 8px; }
 .card-top .eyebrow { font-size: 9px; letter-spacing: 1px; }
