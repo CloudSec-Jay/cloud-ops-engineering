@@ -289,3 +289,8 @@ button:disabled { cursor: not-allowed; opacity: .7; }
   .site-header { flex-wrap: wrap; }
   .site-header nav { order: 3; width: 100%; }
 }
+
+/* Background (experience + credentials) as one button beside Contact. */
+.header-actions { display: flex; align-items: center; gap: 18px; }
+.header-button { padding: 7px 14px; border: 1px solid var(--line); font-size: 12px; }
+.header-button:hover { background: var(--soft); text-decoration: none; }
