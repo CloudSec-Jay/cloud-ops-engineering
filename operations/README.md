@@ -8,6 +8,8 @@ Operational procedures connect telemetry and configuration changes to triage, co
 - [`monitoring/`](monitoring/README.md): monitoring guidance and the migration path to the Kubernetes SecOps Platform
 - [`incident-response/`](incident-response/README.md): evidence collection, host-compromise response, Wazuh triage, and hardening recovery
 
+Reusable recovery objectives, restore-testing infrastructure, drill measurement, and the sanitized evidence format live in the standalone [Cloud Resilience & Recovery](https://github.com/CloudSec-Jay/cloud-resilience-recovery) project. Workload-specific resource wiring, application-consistent hooks, startup ordering, integrity checks, rollback, and ownership remain with the workload that implements them.
+
 ## Operating expectations
 
 - Define ownership, severity, escalation, and recovery for actionable alerts.
