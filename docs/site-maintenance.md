@@ -5,11 +5,12 @@ work in this repository.
 
 ## Content and local preview
 
-- Overview: selected artifacts, AWS experience, credentials, and engineering approach.
-- Library: links to the owner-provided [learning library repository](https://github.com/CloudSec-Jay/Cloud-Security-Learning-Library).
-- Blog: a direct link to the owner-provided Medium profile; articles are not mirrored.
+- Overview: field projects, Red Team feature, selected artifacts, AWS experience, credentials, and engineering approach.
 - Contact: labeled placeholder form and an active LinkedIn contact link.
-- Roadmap: dependency-ordered work and expected validation evidence.
+
+Every page across the portfolio's GitHub Pages sites starts with the same
+`.pages-bar` navigation listing all seven sites. When adding or renaming a
+site, update the bar and its CSS block in every site repository.
 
 Edit the HTML and shared CSS directly. No JavaScript, application server, build
 dependencies, tracking, or contact API is required. Google Fonts is the only
@@ -23,7 +24,7 @@ python3 scripts/validate_site.py
 python3 -m http.server 8000 --bind 127.0.0.1 --directory docs/site
 ```
 
-Open http://localhost:8000. Check all four pages at desktop and mobile widths.
+Open http://localhost:8000. Check both pages at desktop and mobile widths.
 Use Tab to verify focus indicators and the skip link. The validator checks
 local links, fragment targets, repository artifact paths, and allowed public
 asset types; it does not verify external HTTP availability or visual layout.
@@ -32,10 +33,6 @@ Keep the published folder limited to public HTML, CSS, and .nojekyll.
 Add maintenance notes outside it. Update the asset allowlist deliberately if
 adding images or other media. Keep project status aligned with component
 READMEs. Never represent workflow source as proof of a successful run.
-
-The library repository returned HTTP 404 to the available GitHub access during
-this edit. Its URL is retained exactly as supplied by the owner; verify public
-visibility before publication. No repository contents or article titles were inferred.
 
 ## Contact form
 
