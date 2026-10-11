@@ -2,7 +2,7 @@
 
 A practical portfolio of cloud infrastructure, Linux automation, container operations, observability, incident response, and preventive guardrails. The self-hosted Kubernetes security lab is maintained as a linked project.
 
-The [portfolio website](docs/site/index.html) presents the projects, validation boundaries, and roadmap. See [site maintenance and publishing](docs/site-maintenance.md).
+The [portfolio website](docs/site/index.html) presents the projects and their validation boundaries. See [site maintenance and publishing](docs/site-maintenance.md).
 
 ## Portfolio map
 

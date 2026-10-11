@@ -10,13 +10,14 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&amp;family=JetBrains+Mono:wght@400;500&amp;family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=20261011-2">
+  <link rel="stylesheet" href="style.css?v=20261011-pages">
 </head>
 <body>
   <a class="skip" href="#main">Skip to content</a>
+  <nav class="pages-bar" aria-label="Portfolio sites"><a href="https://cloudsec-jay.github.io/cloud-ops-engineering/" aria-current="page">CloudOps</a><a href="https://cloudsec-jay.github.io/dragonwilds-aws/">Dragonwilds</a><a href="https://cloudsec-jay.github.io/k8s-secops-platform/">SecOps</a><a href="https://cloudsec-jay.github.io/ai-ml-security/">AI Security</a><a href="https://cloudsec-jay.github.io/compliance-guardrails-integrity/">Compliance</a><a href="https://cloudsec-jay.github.io/cloud-resilience-recovery/">Resilience</a><a href="https://cloudsec-jay.github.io/red-team-lab-engineering/">Red Team</a></nav>
   <header class="site-header">
     <a class="brand" href="index.html"><span class="dot" aria-hidden="true"></span>Jason Tribble</a>
-    <nav aria-label="Main navigation"><a href="index.html" aria-current="page">Overview</a><a href="library.html">Library</a><a href="roadmap.html">Roadmap</a><a href="https://medium.com/@cloudsec-jay">Blog ↗</a></nav>
+    <nav aria-label="Main navigation"><a href="#project-sites">Projects</a><a href="#experience">Experience</a><a href="#credentials">Credentials</a></nav>
     <a class="header-link" href="contact.html">Contact →</a>
   </header>
   <main id="main">
@@ -48,27 +49,20 @@
     </section>
     <section class="red-team-feature" id="red-team" aria-labelledby="red-team-title">
       <div class="red-team-copy">
-        <p class="red-team-label">Special practice / Authorized labs</p>
         <h2 id="red-team-title">Red Team<br><em>Lab Engineering.</em></h2>
         <p>A controlled adversary-validation program for web applications, APIs, cloud identity, and transport trust. The repository turns scoped hypotheses into sanitized evidence, remediation, and SecOps detection handoffs.</p>
-        <div class="red-team-actions"><a href="https://cloudsec-jay.github.io/red-team-lab-engineering/">Enter the inverted case study ↗</a><a href="https://github.com/CloudSec-Jay/red-team-lab-engineering">Inspect source ↗</a></div>
-      </div>
-      <div class="red-team-system" aria-label="Red Team lab process">
-        <p class="red-team-label">Controlled loop</p>
-        <ol><li><span>01</span>Authorize the boundary</li><li><span>02</span>State the hypothesis</li><li><span>03</span>Exercise the minimum action</li><li><span>04</span>Preserve sanitized evidence</li><li><span>05</span>Hand the gap to SecOps</li></ol>
-        <p class="red-team-status"><i aria-hidden="true"></i>Scaffolded · execution evidence pending</p>
+        <div class="red-team-actions"><a href="https://github.com/CloudSec-Jay/red-team-lab-engineering">Inspect source ↗</a></div>
       </div>
     </section>
-    <section class="section" id="artifacts"><div class="section-heading"><div><p class="eyebrow">CloudOps repository / Source available</p><h2>Operational artifacts.</h2></div><a class="text-link" href="https://github.com/CloudSec-Jay/cloud-ops-engineering">Browse CloudOps source ↗</a></div><div class="project-grid"><a class="project-card" href="https://github.com/CloudSec-Jay/cloud-ops-engineering/blob/main/containers/README.md">
-      <div class="card-top"><span class="eyebrow">01 / Containers</span><span aria-hidden="true">↗</span></div>
-      <h3>Repeatable service environments</h3><p>Compose stacks, operational utility images, and Podman Quadlets. Review image versions, resource limits, ports, and persistent-volume recovery before deployment.</p><span class="status">Environment testing required</span><span class="stack">Compose · Podman · Linux</span>
-    </a><a class="project-card" href="https://github.com/CloudSec-Jay/cloud-ops-engineering/blob/main/operations/README.md">
-      <div class="card-top"><span class="eyebrow">02 / Operations</span><span aria-hidden="true">↗</span></div>
-      <h3>Detection &amp; incident response</h3><p>Operational procedures connect telemetry and configuration changes to triage, containment, recovery, and evidence.</p><span class="status">Configurations + runbooks</span><span class="stack">Wazuh · Triage · Recovery</span>
-    </a><a class="project-card" href="https://github.com/CloudSec-Jay/cloud-ops-engineering/blob/main/operations/capacity-analytics/README.md">
-      <div class="card-top"><span class="eyebrow">03 / Observability</span><span aria-hidden="true">↗</span></div>
-      <h3>EC2 fleet capacity analytics</h3><p>A local MySQL/Grafana stack and inventory schema. Collection, dashboard provisioning, AWS integration, and recovery validation remain incomplete.</p><span class="status">In progress</span><span class="stack">MySQL · Grafana · EC2</span>
-    </a></div></section>
+    <section class="section" id="artifacts" aria-labelledby="systems-title">
+      <div class="section-heading"><div><p class="eyebrow">CloudOps repository / Release platform</p><h2 id="systems-title">One release path.</h2></div><a class="text-link" href="https://github.com/CloudSec-Jay/cloud-ops-engineering/blob/main/docs/build-briefs/README.md">Read the build briefs ↗</a></div>
+      <p class="systems-intro">Three parts of one system: Terraform provisions it, GitOps ships to it, and SLOs decide whether a release survives.</p>
+      <ol class="system-list">
+        <li><a class="system-row" href="https://github.com/CloudSec-Jay/cloud-ops-engineering/blob/main/docs/build-briefs/01-iac-drift-detection.md"><span class="eyebrow">01 / Provision</span><div><h3>Infrastructure as code with drift detection</h3><p>Terraform builds the AWS dev environment. A daily read-only plan opens an issue when live infrastructure no longer matches <code>main</code>.</p></div><span class="stack">Terraform · GitHub OIDC · Actions</span><span class="status">Planned</span><span class="system-arrow" aria-hidden="true">↗</span></a></li>
+        <li><a class="system-row" href="https://github.com/CloudSec-Jay/cloud-ops-engineering/blob/main/docs/build-briefs/02-gitops-auto-rollback.md"><span class="eyebrow">02 / Deliver</span><div><h3>GitOps delivery with automatic rollback</h3><p>Merging a PR is the only way to deploy. Each change ships as a canary and reverts on its own when error rate or latency breaks the threshold.</p></div><span class="stack">Argo CD · Argo Rollouts · k3s</span><span class="status">Planned</span><span class="system-arrow" aria-hidden="true">↗</span></a></li>
+        <li><a class="system-row" href="https://github.com/CloudSec-Jay/cloud-ops-engineering/blob/main/docs/build-briefs/03-slo-error-budgets.md"><span class="eyebrow">03 / Measure</span><div><h3>SLOs and error budgets</h3><p>Availability and latency SLOs with multi-window burn-rate alerts. The canary analysis judges every release against the same SLIs.</p></div><span class="stack">Prometheus · Alertmanager · Grafana</span><span class="status">Planned</span><span class="system-arrow" aria-hidden="true">↗</span></a></li>
+      </ol>
+    </section>
     <section class="career section" id="experience" aria-labelledby="experience-title">
       <div class="section-heading"><div><p class="eyebrow">Professional experience</p><h2 id="experience-title">Operating at AWS.</h2></div><a class="text-link" href="https://www.linkedin.com/in/jt92/">View LinkedIn ↗</a></div>
       <article class="career-role">
@@ -115,7 +109,7 @@
   </main>
   <footer>
     <div><a class="brand" href="index.html">Jason Tribble.</a><p>Cloud operations. Built with intent.</p></div>
-    <div class="footer-links"><a href="https://github.com/CloudSec-Jay/cloud-ops-engineering">Source repository ↗</a><a href="https://medium.com/@cloudsec-jay">Blog on Medium ↗</a><a href="contact.html">Contact →</a><a href="https://www.credly.com/users/jason-tribble">Credentials ↗</a></div>
+    <div class="footer-links"><a href="https://github.com/CloudSec-Jay/cloud-ops-engineering">Source repository ↗</a><a href="contact.html">Contact →</a><a href="https://www.credly.com/users/jason-tribble">Credentials ↗</a></div>
   </footer>
 </body>
 </html>
