@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&amp;family=JetBrains+Mono:wght@400;500&amp;family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=20261011-header">
+  <link rel="stylesheet" href="style.css?v=20261011-redesign">
 </head>
 <body>
   <a class="skip" href="#main">Skip to content</a>
@@ -22,20 +22,13 @@
   <main id="main">
     <section class="hero" aria-labelledby="hero-title">
       <div class="hero-left"><p class="eyebrow">— Cloud Operations Engineer</p><h1 id="hero-title">Jason<br><em>Tribble.</em></h1>
-      <div class="actions"><a class="button dark" href="#artifacts">Explore the work <span aria-hidden="true">↓</span></a><a class="button" href="https://github.com/CloudSec-Jay/cloud-ops-engineering">View GitHub ↗</a></div></div>
+      <div class="actions"><a class="button dark" href="#project-sites">Explore the work <span aria-hidden="true">↓</span></a><a class="button" href="https://github.com/CloudSec-Jay/cloud-ops-engineering">View GitHub ↗</a></div></div>
       <div class="hero-right"><p class="eyebrow">Infrastructure / Operations / Security</p>
         <p class="pitch">Build deliberately.<br>Operate reliably.<br><em>Recover confidently.</em></p>
         <p class="intro">My portfolio brings together AWS infrastructure, Linux automation, containers, and observability—with validation and recovery considered at every step.</p>
         <div class="hero-note"><span class="dot" aria-hidden="true"></span>Hands-on work. Source and limitations included.</div>
       </div>
     </section>
-    <section class="expertise" aria-label="Engineering focus">
-      <div><span class="eyebrow">01 / Build</span><h2>Cloud<br> foundation</h2><p>Infrastructure as code, explicit identity boundaries, and repeatable Linux configuration.</p><span class="stack">AWS · Ansible · CloudFormation</span></div>
-      <div><span class="eyebrow">02 / Operate</span><h2>Visible<br> systems</h2><p>Container services, telemetry, detection configuration, and actionable response procedures.</p><span class="stack">Kubernetes · Wazuh · Cilium</span></div>
-      <div><span class="eyebrow">03 / Recover</span><h2>Operational<br> discipline</h2><p>Preserve evidence, review changes, and document the path back when a system fails.</p><span class="stack">Runbooks · Triage · Rollback</span></div>
-    </section>
-    <div class="skills-strip"><span class="eyebrow">Toolbox</span><p>AWS <span> / </span> Linux <span> / </span> Ansible <span> / </span> Docker <span> / </span> Kubernetes <span> / </span> OPA <span> / </span> GitHub Actions</p></div>
-    <section class="about"><p class="eyebrow">The approach</p><p>From the host to the cloud: understand the failure, make the change repeatable, and leave a recovery path. <em>The repository shows both the implementation and the work still ahead.</em></p></section>
     <section class="project-family" id="project-sites" aria-labelledby="project-sites-title">
       <div class="project-family-intro"><div><p class="eyebrow">Field projects / GitHub Pages</p><h2 id="project-sites-title">One practice.<br>Five distinct systems.</h2></div><p>Each case study shares this portfolio’s visual foundation, then adopts its own system-specific identity. The source and the current validation boundary remain visible.</p></div>
       <div class="project-family-list">
@@ -52,15 +45,6 @@
         <p>A controlled adversary-validation program for web applications, APIs, cloud identity, and transport trust. The repository turns scoped hypotheses into sanitized evidence, remediation, and SecOps detection handoffs.</p>
         <div class="red-team-actions"><a href="https://cloudsec-jay.github.io/red-team-lab-engineering/">Open the case study ↗</a></div>
       </div>
-    </section>
-    <section class="section" id="artifacts" aria-labelledby="systems-title">
-      <div class="section-heading"><div><p class="eyebrow">CloudOps repository / Release platform</p><h2 id="systems-title">One release path.</h2></div><a class="text-link" href="https://github.com/CloudSec-Jay/cloud-ops-engineering/blob/main/docs/build-briefs/README.md">Read the build briefs ↗</a></div>
-      <p class="systems-intro">Three parts of one system: Terraform provisions it, GitOps ships to it, and SLOs decide whether a release survives.</p>
-      <ol class="system-list">
-        <li><a class="system-row" href="https://github.com/CloudSec-Jay/cloud-ops-engineering/blob/main/docs/build-briefs/01-iac-drift-detection.md"><span class="eyebrow">01 / Provision</span><div><h3>Infrastructure as code with drift detection</h3><p>Terraform builds the AWS dev environment. A daily read-only plan opens an issue when live infrastructure no longer matches <code>main</code>.</p></div><span class="stack">Terraform · GitHub OIDC · Actions</span><span class="status">Planned</span><span class="system-arrow" aria-hidden="true">↗</span></a></li>
-        <li><a class="system-row" href="https://github.com/CloudSec-Jay/cloud-ops-engineering/blob/main/docs/build-briefs/02-gitops-auto-rollback.md"><span class="eyebrow">02 / Deliver</span><div><h3>GitOps delivery with automatic rollback</h3><p>Merging a PR is the only way to deploy. Each change ships as a canary and reverts on its own when error rate or latency breaks the threshold.</p></div><span class="stack">Argo CD · Argo Rollouts · k3s</span><span class="status">Planned</span><span class="system-arrow" aria-hidden="true">↗</span></a></li>
-        <li><a class="system-row" href="https://github.com/CloudSec-Jay/cloud-ops-engineering/blob/main/docs/build-briefs/03-slo-error-budgets.md"><span class="eyebrow">03 / Measure</span><div><h3>SLOs and error budgets</h3><p>Availability and latency SLOs with multi-window burn-rate alerts. The canary analysis judges every release against the same SLIs.</p></div><span class="stack">Prometheus · Alertmanager · Grafana</span><span class="status">Planned</span><span class="system-arrow" aria-hidden="true">↗</span></a></li>
-      </ol>
     </section>
     <section class="career section" id="experience" aria-labelledby="experience-title">
       <div class="section-heading"><div><p class="eyebrow">Professional experience</p><h2 id="experience-title">Operating at AWS.</h2></div><a class="text-link" href="https://www.linkedin.com/in/jt92/">View LinkedIn ↗</a></div>
@@ -99,13 +83,15 @@
         <a class="credential-card" href="https://www.credly.com/users/jason-tribble"><span class="eyebrow">CompTIA</span><h3>CompTIA ITF+</h3><span class="stack">Issued Jan 2024</span><span class="stack">Verify on Credly ↗</span></a>
       </div>
     </section>
-    <section class="working-style" aria-labelledby="working-title">
-      <div class="working-intro"><p class="eyebrow">How I work</p><h2 id="working-title">Understand the system.<br>Make the change count.</h2><p>My approach to operating infrastructure starts with a clear problem and a plan for what happens next.</p><a class="button" href="contact.html">Start a conversation →</a></div>
-      <ol class="working-steps">
-        <li><span class="eyebrow">01 / Understand</span><h3>Find the failure boundary.</h3><p>Trace dependencies, inspect logs, and establish what changed before choosing a fix.</p></li>
-        <li><span class="eyebrow">02 / Change</span><h3>Keep the change controlled.</h3><p>Scope access, automate repeatable steps, and define rollback before applying a change.</p></li>
-        <li><span class="eyebrow">03 / Follow through</span><h3>Check the outcome.</h3><p>Confirm service health, document the result, and leave a runbook that helps the next operator.</p></li>
+    <section class="section release" id="artifacts" aria-labelledby="systems-title">
+      <div class="section-heading"><div><p class="eyebrow">CloudOps repository / Release platform</p><h2 id="systems-title">One release path.</h2></div><a class="text-link" href="https://github.com/CloudSec-Jay/cloud-ops-engineering/blob/main/docs/build-briefs/README.md">Read the build briefs ↗</a></div>
+      <p class="release-intro">Three parts of one system: Terraform provisions it, GitOps ships to it, and SLOs decide whether a release survives.</p>
+      <ol class="pipeline">
+        <li class="stage"><a href="https://github.com/CloudSec-Jay/cloud-ops-engineering/blob/main/docs/build-briefs/01-iac-drift-detection.md"><span class="stage-node" aria-hidden="true"></span><span class="eyebrow">01 / Provision</span><h3>Infrastructure as code with drift detection</h3><p>Terraform builds the AWS dev environment. A daily read-only plan opens an issue when live infrastructure no longer matches <code>main</code>.</p><span class="stack">Terraform · GitHub OIDC · Actions</span><span class="status">Planned</span></a></li>
+        <li class="stage"><a href="https://github.com/CloudSec-Jay/cloud-ops-engineering/blob/main/docs/build-briefs/02-gitops-auto-rollback.md"><span class="stage-node" aria-hidden="true"></span><span class="eyebrow">02 / Deliver</span><h3>GitOps delivery with automatic rollback</h3><p>Merging a PR is the only way to deploy. Each change ships as a canary and reverts on its own when error rate or latency breaks the threshold.</p><span class="stack">Argo CD · Argo Rollouts · k3s</span><span class="status">Planned</span></a></li>
+        <li class="stage"><a href="https://github.com/CloudSec-Jay/cloud-ops-engineering/blob/main/docs/build-briefs/03-slo-error-budgets.md"><span class="stage-node" aria-hidden="true"></span><span class="eyebrow">03 / Measure</span><h3>SLOs and error budgets</h3><p>Availability and latency SLOs with multi-window burn-rate alerts. The canary analysis judges every release against the same SLIs.</p><span class="stack">Prometheus · Alertmanager · Grafana</span><span class="status">Planned</span></a></li>
       </ol>
+      <div class="pipeline-loop"><span class="loop-bracket" aria-hidden="true"></span><p><span aria-hidden="true">↺</span> Rollback loop: when Measure fails a canary check, Deliver reverts to the last stable release.</p></div>
     </section>
   </main>
   <footer>
