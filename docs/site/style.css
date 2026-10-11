@@ -82,17 +82,17 @@ nav a[aria-current] { color: var(--ink); text-decoration: underline; text-underl
 .family-card h3 { margin: 44px 0 16px; font-size: 29px; }
 .family-card p { font-size: 12px; }
 .family-link { z-index: 1; margin-top: auto; padding-top: 24px; font: 500 9px/1.8 var(--mono); text-transform: uppercase; letter-spacing: .8px; }
-.red-team-feature { display: grid; grid-template-columns: 1.2fr .8fr; background: var(--ink); color: var(--bg); border-bottom: 1px solid var(--line); }
-.red-team-copy { padding: 58px 48px; border-right: 1px solid #5c5047; }
+.red-team-feature { display: grid; grid-template-columns: 1.35fr .65fr; background: var(--ink); color: var(--bg); border-bottom: 1px solid var(--line); }
+.red-team-copy { padding: 36px 40px; border-right: 1px solid #5c5047; }
 .red-team-label { color: #d85a48; font: 500 10px/1.8 var(--mono); letter-spacing: 1.7px; text-transform: uppercase; }
-.red-team-feature h2 { margin: 18px 0 26px; font-size: 48px; color: var(--bg); }
+.red-team-feature h2 { margin: 10px 0 16px; font-size: 38px; color: var(--bg); }
 .red-team-feature h2 em { color: #d85a48; font-weight: 400; }
-.red-team-copy > p:not(.red-team-label) { max-width: 610px; color: #b9ad9f; }
-.red-team-actions { display: flex; flex-wrap: wrap; gap: 12px 26px; margin-top: 34px; font: 500 10px/1.8 var(--mono); text-transform: uppercase; letter-spacing: .7px; }
+.red-team-copy > p:not(.red-team-label) { max-width: 650px; color: #b9ad9f; font-size: 13px; }
+.red-team-actions { display: flex; flex-wrap: wrap; gap: 10px 24px; margin-top: 20px; font: 500 9px/1.8 var(--mono); text-transform: uppercase; letter-spacing: .7px; }
 .red-team-actions a:first-child { color: #f07a66; }
-.red-team-system { padding: 58px 38px; background: #28231f; }
-.red-team-system ol { margin: 28px 0; padding: 0; list-style: none; border-top: 1px solid #5c5047; }
-.red-team-system li { display: grid; grid-template-columns: 46px 1fr; gap: 14px; padding: 16px 0; border-bottom: 1px solid #5c5047; color: #f5efe1; font-size: 12px; }
+.red-team-system { padding: 34px 30px; background: #28231f; }
+.red-team-system ol { margin: 14px 0; padding: 0; list-style: none; border-top: 1px solid #5c5047; }
+.red-team-system li { display: grid; grid-template-columns: 38px 1fr; gap: 10px; padding: 8px 0; border-bottom: 1px solid #5c5047; color: #f5efe1; font-size: 11px; }
 .red-team-system li span { color: #d85a48; font: 10px var(--mono); }
 .red-team-status { color: #b9ad9f; font: 9px/1.8 var(--mono); text-transform: uppercase; letter-spacing: 1px; }
 .red-team-status i { display: inline-block; width: 7px; height: 7px; margin-right: 9px; background: #d85a48; transform: rotate(45deg); }
@@ -144,14 +144,14 @@ footer p { font-size: 11px; margin-top: 8px; }
   .family-card { min-height: 320px; border-bottom: 1px solid var(--line); }
   .family-card:nth-child(2n) { border-right: 0; }
   .family-card:last-child { grid-column: 1 / -1; min-height: 270px; }
-  .red-team-feature { grid-template-columns: 1fr; }
-  .red-team-copy { border-right: 0; border-bottom: 1px solid #5c5047; }
   .expertise > div { padding: 30px 25px; }
   nav { gap: 18px; }
 }
 @media (max-width: 760px) {
   .site-header { flex-wrap: wrap; padding: 18px 22px; gap: 18px; }
   nav { order: 3; width: 100%; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+  .red-team-feature { grid-template-columns: 1fr; }
+  .red-team-copy { border-right: 0; border-bottom: 1px solid #5c5047; }
 }
 @media (max-width: 680px) {
   html { scroll-padding-top: 120px; }
@@ -179,8 +179,8 @@ footer p { font-size: 11px; margin-top: 8px; }
   .family-card, .family-card:last-child { grid-column: auto; min-height: 300px; padding: 34px 24px; border-right: 0; border-bottom: 1px solid var(--line); }
   .family-card:last-child { border-bottom: 0; }
   .family-card h3 { margin-top: 36px; font-size: 34px; }
-  .red-team-copy, .red-team-system { padding: 42px 24px; }
-  .red-team-feature h2 { font-size: 39px; }
+  .red-team-copy, .red-team-system { padding: 30px 24px; }
+  .red-team-feature h2 { font-size: 34px; }
   .library-title { padding: 28px 24px; border-right: 0; border-bottom: 1px solid var(--line); background: var(--soft); }
   .library-item { padding: 25px 24px; }
   .roadmap-row { grid-template-columns: 1fr; padding: 32px 24px; gap: 20px; }
