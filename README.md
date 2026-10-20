@@ -1,17 +1,32 @@
 # Cloud Operations Engineering
 
-A practical portfolio of cloud infrastructure, Linux automation, container operations, observability, incident response, and preventive guardrails. The self-hosted Kubernetes security lab is maintained as a linked project.
+A practical portfolio of cloud infrastructure, Linux automation, container operations, observability, incident response, and preventive guardrails.
+
+This repository is the hub of one system. Each field project lives in its own repository, has its own GitHub Pages site, and links back here; the hub keeps the shared operations, infrastructure, and security foundations.
 
 The [portfolio website](docs/site/index.html) presents the projects and their validation boundaries. See [site maintenance and publishing](docs/site-maintenance.md).
 
-## Portfolio map
+## System map
+
+| # | Project | What it owns | Repository | Site |
+|---|---|---|---|---|
+| Hub | Cloud Operations Engineering | Shared infrastructure, containers, operations, and security foundations | this repository | [site](https://cloudsec-jay.github.io/cloud-ops-engineering/) |
+| 01 | Hardened AWS Workload | Dragonwilds dedicated server run like production: Packer/Ansible AMIs, CloudFormation, retained EBS, Falco, CloudWatch | [`dragonwilds-aws`](https://github.com/CloudSec-Jay/dragonwilds-aws) | [site](https://cloudsec-jay.github.io/dragonwilds-aws/) |
+| 02 | Kubernetes SecOps | kubeadm VM cluster, Cilium/Hubble, Wazuh, and detection content | [`k8s-secops-platform`](https://github.com/CloudSec-Jay/k8s-secops-platform) | [site](https://cloudsec-jay.github.io/k8s-secops-platform/) |
+| 03 | AI/ML Security | Agent, MCP, LLM, and MLOps attack surface and controls | [`ai-ml-security`](https://github.com/CloudSec-Jay/ai-ml-security) | [site](https://cloudsec-jay.github.io/ai-ml-security/) |
+| 04 | Compliance Guardrails & Integrity | AWS guardrails, OPA admission, evidence mapping, SBOMs, and signing | [`compliance-guardrails-integrity`](https://github.com/CloudSec-Jay/compliance-guardrails-integrity) | [site](https://cloudsec-jay.github.io/compliance-guardrails-integrity/) |
+| 05 | Cloud Resilience & Recovery | AWS Backup restore testing, RTO/RPO scorecards, recovery evidence | [`cloud-resilience-recovery`](https://github.com/CloudSec-Jay/cloud-resilience-recovery) | [site](https://cloudsec-jay.github.io/cloud-resilience-recovery/) |
+| Special practice | Red Team Lab Engineering | Authorized adversary emulation with detection handoff to SecOps | [`red-team-lab-engineering`](https://github.com/CloudSec-Jay/red-team-lab-engineering) | [site](https://cloudsec-jay.github.io/red-team-lab-engineering/) |
+
+Workload-specific implementation stays in the owning repository; reusable methods and shared foundations are linked rather than duplicated.
+
+## Hub contents
 
 | Area | What is demonstrated | Entry point |
 |---|---|---|
 | Containers | Compose services, hardened utility images, and Podman Quadlets | [`containers/`](containers/README.md) |
 | Infrastructure | Ansible, CloudFormation, and a clean Terraform layout | [`infrastructure/`](infrastructure/README.md) |
 | Operations | Incident response, recovery procedures, and capacity analytics | [`operations/`](operations/README.md) |
-| Kubernetes SecOps | kubeadm, Cilium, Hubble, Wazuh, and migrated detection content | [`CloudSec-Jay/k8s-secops-platform`](https://github.com/CloudSec-Jay/k8s-secops-platform) |
 | Platform | Pointers to the dedicated Kubernetes SecOps project | [`platform/`](platform/README.md) |
 | Security controls | AWS guardrails, OPA policy-as-code, checksums, SBOMs, and image signing | [`security/`](security/README.md) |
 | Architecture and evidence | Threat models, framework maps, and evidence templates | [`docs/`](docs/README.md) |
@@ -53,7 +68,7 @@ The strongest next additions for a cloud operations engineer are:
 7. Add deployment promotion, rollback, and environment approval workflows.
 8. Capture redacted evidence from successful tests without committing secrets or customer data.
 
-AI/ML security labs, application-security training, pentesting labs, threat-hunting notebooks, forensics exercises, and archived websites are intentionally excluded.
+This roadmap covers the hub. AI/ML security, adversary emulation, compliance, and recovery work are tracked in their own project repositories listed in the [system map](#system-map). Threat-hunting notebooks, forensics exercises, and archived websites remain out of scope.
 
 ## Safety
 
