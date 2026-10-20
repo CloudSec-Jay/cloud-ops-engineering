@@ -5,4 +5,4 @@ The Kubernetes platform examples were combined with Wazuh detection engineering 
 - [`kubernetes/`](kubernetes/README.md): migration pointer and direct links
 - [Live project site](https://cloudsec-jay.github.io/k8s-secops-platform/): architecture, controls, and validation boundary
 
-Policy-as-code remains in [`../security/policy-as-code/`](../security/policy-as-code/README.md) as Project 06's canonical source.
+Policy-as-code remains in [`../security/policy-as-code/`](../security/policy-as-code/README.md) as the canonical source.
