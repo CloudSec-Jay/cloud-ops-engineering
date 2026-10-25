@@ -4,7 +4,7 @@
 # NIST 800-190 - Immutable infrastructure
 
 # Stage 1 — Download, verify, and extract all tools
-FROM debian:trixie-20260223-slim@sha256:1d3c811171a08a5adaa4a163fbafd96b61b87aa871bbc7aa15431ac275d3d430 AS builder
+FROM debian:trixie-20261020-slim@sha256:62bd423aeee912639ca8ee681c2b762cb3e25137e0a92b20be455898a9f034ad AS builder
 
 # Set pipefail so curl | sha256sum pipe failures are caught
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
@@ -55,7 +55,7 @@ RUN curl -sSL "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o /tmp
 # =========================================================================
 
 # Stage 2 — Clean runtime, no curl, no apt repositories
-FROM debian:trixie-20260223-slim@sha256:1d3c811171a08a5adaa4a163fbafd96b61b87aa871bbc7aa15431ac275d3d430
+FROM debian:trixie-20261020-slim@sha256:62bd423aeee912639ca8ee681c2b762cb3e25137e0a92b20be455898a9f034ad
 
 # Minimal runtime dependencies
 # git: required by TF modules and Ansible
